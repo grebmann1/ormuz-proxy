@@ -1,0 +1,40 @@
+{
+  "name": "ormuz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rate-limited LLM gateway proxy with adaptive queueing",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.ts",
+    "dev:cli": "tsx src/cli.ts",
+    "load:test": "node scripts/load-test-ormuz.mjs",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "bin": {
+    "ormuz": "dist/cli.js"
+  },
+  "dependencies": {
+    "fastify": "^5.1.0",
+    "pino": "^9.5.0",
+    "prom-client": "^15.1.3",
+    "undici": "^7.13.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "eslint": "^9.31.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

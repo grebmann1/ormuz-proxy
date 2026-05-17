@@ -1,0 +1,31 @@
+{
+  "providers": {
+    "openai": "https://your-llm-gateway.example.com/v1",
+    "anthropic": "https://your-llm-gateway.example.com/bedrock",
+    "gemini": "https://your-llm-gateway.example.com/v1beta"
+  },
+  "routes": {
+    "pathPrefixes": {
+      "/v1/openai": "https://your-llm-gateway.example.com/v1",
+      "/v1/anthropic": "https://your-llm-gateway.example.com/bedrock",
+      "/v1/gemini": "https://your-llm-gateway.example.com/v1beta"
+    },
+    "headers": [
+      {
+        "header": "x-ormuz-target",
+        "value": "openai",
+        "target": "https://your-llm-gateway.example.com/v1"
+      },
+      {
+        "header": "x-ormuz-target",
+        "value": "anthropic",
+        "target": "https://your-llm-gateway.example.com/bedrock"
+      },
+      {
+        "header": "x-ormuz-target",
+        "value": "gemini",
+        "target": "https://your-llm-gateway.example.com/v1beta"
+      }
+    ]
+  }
+}
