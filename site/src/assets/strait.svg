@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-label="Map of a narrow strait between your code and the LLM gateway, with three small ships moving left through the strait.">
+  <style>
+    .land { fill: #ebe8df; stroke: #dcd6c5; stroke-width: 1; }
+    .arc { fill: none; stroke: #dcd6c5; stroke-width: 1; stroke-dasharray: 2 6; opacity: .4; }
+    .ship { fill: #c1672b; transform-box: fill-box; transform-origin: center; }
+    .endcap { fill: none; stroke: #0f7a8a; stroke-width: 1; }
+    .label { fill: #6b7a85; font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: 0.08em; }
+    .bg { fill: #fbfaf6; }
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes drift { 0% { transform: translateX(0); } 100% { transform: translateX(-24px); } }
+    .ship-a { animation: bob 4s ease-in-out infinite, drift 12s linear infinite; }
+    .ship-b { animation: bob 4s ease-in-out 0.4s infinite, drift 12s linear -4s infinite; }
+    .ship-c { animation: bob 4s ease-in-out 0.8s infinite, drift 12s linear -8s infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .ship-a, .ship-b, .ship-c { animation: none; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0a141c; }
+      .land { fill: #08111a; stroke: #1d2b36; }
+      .arc { stroke: #1d2b36; }
+      .endcap { stroke: #7ed3df; }
+      .label { fill: #7a858f; }
+      .ship { fill: #e3a06f; }
+    }
+  </style>
+  <rect class="bg" x="0" y="0" width="480" height="360" rx="10" ry="10"/>
+  <path class="land" d="M0,0 L480,0 L480,120 C420,118 360,124 300,128 C240,134 180,138 120,140 C72,141 36,140 0,138 Z"/>
+  <path class="land" d="M0,360 L0,222 C36,220 72,221 120,222 C180,224 240,228 300,232 C360,236 420,242 480,240 L480,360 Z"/>
+  <path class="arc" d="M40,180 Q200,168 360,176"/>
+  <path class="arc" d="M40,196 Q200,188 340,194"/>
+  <path class="arc" d="M40,164 Q200,156 360,160"/>
+  <line class="endcap" x1="20" y1="166" x2="20" y2="194"/>
+  <text class="label" x="20" y="156" text-anchor="start">YOUR CODE</text>
+  <line class="endcap" x1="460" y1="166" x2="460" y2="194"/>
+  <text class="label" x="460" y="156" text-anchor="end">GATEWAY</text>
+  <polygon class="ship ship-c" points="174,182 186,176 186,188"/>
+  <polygon class="ship ship-b" points="294,178 306,172 306,184"/>
+  <polygon class="ship ship-a" points="374,180 386,174 386,186"/>
+</svg>

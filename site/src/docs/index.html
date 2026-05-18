@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Documentation — Ormuz</title>
+<meta name="description" content="Three docs cover Ormuz end to end: how it works, install, and architecture.">
+<meta name="theme-color" content="#fbfaf6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a141c" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Ormuz Documentation">
+<meta property="og:description" content="Three docs cover Ormuz end to end: how it works, install, and architecture.">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header" role="banner">
+  <div class="container site-header__inner">
+    <a class="brand" href="/" aria-label="Ormuz home">
+      <span>Ormuz</span>
+      <svg class="brand__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+          <path d="M9 7 C 5 12, 5 20, 9 25"/>
+          <path d="M23 7 C 27 12, 27 20, 23 25"/>
+        </g>
+        <circle cx="16" cy="16" r="2" fill="currentColor"/>
+      </svg>
+    </a>
+    <nav class="nav-primary" aria-label="Primary">
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/grebmann1/ormuz-proxy" target="_blank" rel="noopener noreferrer">
+        GitHub
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        <span class="sr-only">(opens in new tab)</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<details class="docs-mobile-nav">
+  <summary>Documentation</summary>
+  <nav class="docs-nav" aria-label="Docs sidebar (mobile)">
+    <p class="docs-nav__group-label">Docs</p>
+    <ul>
+      <li><a href="/docs/" aria-current="page">Overview</a></li>
+      <li><a href="/docs/how-it-works.html">How it works</a></li>
+      <li><a href="/docs/install.html">Install</a></li>
+      <li><a href="/docs/architecture.html">Architecture</a></li>
+    </ul>
+    <p class="docs-nav__group-label">Project</p>
+    <ul>
+      <li><a href="https://github.com/grebmann1/ormuz-proxy" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      <li><a href="https://github.com/grebmann1/ormuz-proxy/issues" target="_blank" rel="noopener noreferrer">Issues</a></li>
+      <li><a href="https://github.com/grebmann1/ormuz-proxy/blob/main/README.md" target="_blank" rel="noopener noreferrer">README</a></li>
+    </ul>
+  </nav>
+</details>
+
+<main id="main">
+  <div class="docs-shell">
+    <div class="docs-grid">
+      <aside class="docs-rail">
+        <nav class="docs-nav" aria-label="Docs sidebar">
+          <p class="docs-nav__group-label">Docs</p>
+          <ul>
+            <li><a href="/docs/" aria-current="page">Overview</a></li>
+            <li><a href="/docs/how-it-works.html">How it works</a></li>
+            <li><a href="/docs/install.html">Install</a></li>
+            <li><a href="/docs/architecture.html">Architecture</a></li>
+          </ul>
+          <p class="docs-nav__group-label">Project</p>
+          <ul>
+            <li><a href="https://github.com/grebmann1/ormuz-proxy" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+            <li><a href="https://github.com/grebmann1/ormuz-proxy/issues" target="_blank" rel="noopener noreferrer">Issues</a></li>
+            <li><a href="https://github.com/grebmann1/ormuz-proxy/blob/main/README.md" target="_blank" rel="noopener noreferrer">README</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <article class="docs-main">
+        <div class="docs-main__inner">
+          <header class="docs-page-header">
+            <p class="docs-page-header__eyebrow">Docs</p>
+            <h1>Documentation</h1>
+            <p class="docs-page-header__edit"><a href="https://github.com/grebmann1/ormuz-proxy/blob/main/README.md" target="_blank" rel="noopener noreferrer">Edit on GitHub -&gt;<span class="sr-only">(opens in new tab)</span></a></p>
+          </header>
+
+          <p style="color: var(--ink-2); max-width: 60ch;">Three docs cover Ormuz end to end. Start with How it works to see the request lifecycle. Reach for Install when you're wiring it into a machine. Open Architecture when you need to change the proxy itself.</p>
+
+          <div class="docs-hub-grid">
+            <a class="card" href="/docs/how-it-works.html">
+              <h3 class="card__title">How Ormuz Works</h3>
+              <p class="card__body">Request lifecycle, the rate-limiting model, and what happens to a CONNECT tunnel from the moment a client opens it.</p>
+            </a>
+            <a class="card" href="/docs/install.html">
+              <h3 class="card__title">Installing Ormuz</h3>
+              <p class="card__body">Two macOS install layers, what each one catches, and the failure modes that bite during real installs.</p>
+            </a>
+            <a class="card" href="/docs/architecture.html">
+              <h3 class="card__title">Architecture</h3>
+              <p class="card__body">Component map, sequence diagrams, and the design decisions you should know before changing core code.</p>
+            </a>
+          </div>
+
+          <footer class="docs-page-footer">Last updated from main · Ormuz docs</footer>
+        </div>
+      </article>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer" role="contentinfo">
+  <div class="container site-footer__inner">
+    <p class="site-footer__left">Ormuz<span class="sep">·</span>MIT License<span class="sep">·</span>2026</p>
+    <nav class="site-footer__nav" aria-label="Footer">
+      <a href="https://github.com/grebmann1/ormuz-proxy" target="_blank" rel="noopener noreferrer">GitHub
+        <svg class="icon-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        <span class="sr-only">(opens in new tab)</span>
+      </a>
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/grebmann1/ormuz-proxy/issues" target="_blank" rel="noopener noreferrer">Issues
+        <svg class="icon-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        <span class="sr-only">(opens in new tab)</span>
+      </a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ormuz — calm traffic through a narrow strait</title>
+<meta name="description" content="Ormuz sits between your code and the LLM gateway, pacing requests with a token bucket and queueing bursts in FIFO so your tools stop hitting the rate limit.">
+<meta name="theme-color" content="#fbfaf6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a141c" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Ormuz — calm traffic through a narrow strait">
+<meta property="og:description" content="A proxy for your LLM gateway. Token-bucket pacing, bounded FIFO queues, and graceful 429 retries.">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+/* Critical above-the-fold (under 100 lines): keeps hero usable before stylesheet paints. */
+:root{--ink:#0b1721;--ink-2:#3a4a57;--ink-3:#6b7a85;--paper:#fbfaf6;--paper-2:#f3f1ea;--paper-3:#ebe8df;--hairline:#dcd6c5;--strait:#0e4a6b;--tide:#0f7a8a;--coast:#c1672b;}
+@media(prefers-color-scheme:dark){:root{--ink:#e9eef2;--ink-2:#a9b4bd;--ink-3:#7a858f;--paper:#0a141c;--paper-2:#0e1a23;--paper-3:#08111a;--hairline:#1d2b36;--strait:#5db4cf;--tide:#7ed3df;--coast:#e3a06f;}}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
+.container{width:min(1120px,92vw);margin:0 auto}
+.site-header{position:sticky;top:0;z-index:100;height:64px;background:var(--paper);border-bottom:1px solid var(--hairline)}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header" role="banner">
+  <div class="container site-header__inner">
+    <a class="brand" href="/" aria-label="Ormuz home">
+      <span>Ormuz</span>
+      <svg class="brand__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+          <path d="M9 7 C 5 12, 5 20, 9 25"/>
+          <path d="M23 7 C 27 12, 27 20, 23 25"/>
+        </g>
+        <circle cx="16" cy="16" r="2" fill="currentColor"/>
+      </svg>
+    </a>
+    <nav class="nav-primary" aria-label="Primary">
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/grebmann1/ormuz-proxy" target="_blank" rel="noopener noreferrer">
+        GitHub
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        <span class="sr-only">(opens in new tab)</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- 2.2 Hero -->
+  <section class="hero container" aria-labelledby="hero-title">
+    <div class="hero__grid">
+      <div class="hero__copy">
+        <p class="hero__eyebrow">A proxy for your LLM gateway</p>
+        <h1 class="hero__headline" id="hero-title">Calm traffic<br>through a narrow strait.</h1>
+        <p class="hero__subhead">Ormuz sits between your code and the LLM gateway. It paces requests with a token bucket, queues bursts in FIFO, and retries upstream 429s so your tools stop hitting the rate limit.</p>
+        <div class="hero__ctas">
+          <a class="btn btn--primary" href="#install">Install in 30 seconds</a>
+          <a class="link-arrow" href="/docs/">Read the docs -&gt;</a>
+        </div>
+        <p class="hero__meta">Node 20+ &nbsp; · &nbsp; MIT licensed &nbsp; · &nbsp; ~1.6k LOC</p>
+      </div>
+      <div class="hero__visual">
+        <div class="hero__visual-frame">
+          <svg viewBox="0 0 480 360" role="img" aria-label="Map of a narrow strait between your code and the LLM gateway, with three small ships moving left through the strait." class="strait-svg" width="480" height="360" preserveAspectRatio="xMidYMid meet">
+            <rect class="strait-bg" x="0" y="0" width="480" height="360" rx="10" ry="10"/>
+            <path class="strait-land" d="M0,0 L480,0 L480,120 C420,118 360,124 300,128 C240,134 180,138 120,140 C72,141 36,140 0,138 Z"/>
+            <path class="strait-land" d="M0,360 L0,222 C36,220 72,221 120,222 C180,224 240,228 300,232 C360,236 420,242 480,240 L480,360 Z"/>
+            <path class="strait-arc" d="M40,180 Q200,168 360,176"/>
+            <path class="strait-arc" d="M40,196 Q200,188 340,194"/>
+            <path class="strait-arc" d="M40,164 Q200,156 360,160"/>
+            <line class="strait-endcap" x1="20" y1="166" x2="20" y2="194"/>
+            <text class="strait-label" x="20" y="156" text-anchor="start">YOUR CODE</text>
+            <line class="strait-endcap" x1="460" y1="166" x2="460" y2="194"/>
+            <text class="strait-label" x="460" y="156" text-anchor="end">GATEWAY</text>
+            <polygon class="strait-ship strait-ship--c" points="174,182 186,176 186,188"/>
+            <polygon class="strait-ship strait-ship--b" points="294,178 306,172 306,184"/>
+            <polygon class="strait-ship strait-ship--a" points="374,180 386,174 386,186"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.3 What it does -->
+  <section class="section section--alt" aria-labelledby="what-title">
+    <div class="container">
+      <h2 class="section-heading" id="what-title">What Ormuz does</h2>
+      <p class="section-subhead">Four jobs, executed by a single Node process you can run as a sidecar or as a system-wide proxy.</p>
+      <div class="cards-grid">
+        <article class="card">
+          <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+          <h3 class="card__title">Token-bucket pacing</h3>
+          <p class="card__body">Per-key rate control with a configurable safety factor. Buckets start full, so short bursts pass; sustained traffic gets paced to your real RPM budget.</p>
+        </article>
+        <article class="card">
+          <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+          <h3 class="card__title">Bounded FIFO queueing</h3>
+          <p class="card__body">Bursts wait in a per-key queue with a hard depth cap and a projected-wait cap. When the line is too long, Ormuz fails fast with a local 429 instead of stranding the request.</p>
+        </article>
+        <article class="card">
+          <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="17 3 21 7 17 11"/><line x1="21" y1="7" x2="9" y2="7"/><polyline points="7 21 3 17 7 13"/><line x1="15" y1="17" x2="3" y2="17"/></svg>
+          <h3 class="card__title">HTTPS via CONNECT</h3>
+          <p class="card__body">Acts as a system-wide proxy. Tunnels TLS byte-for-byte without termination — no custom CA, no MITM. Per-host rate limits apply to every CONNECT.</p>
+        </article>
+        <article class="card">
+          <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <h3 class="card__title">Prometheus metrics</h3>
+          <p class="card__body">Queue depth, dequeue wait, tokens available, and outcome counters per bucket key. One scrape endpoint, ready for your existing dashboards.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.4 How it works -->
+  <section class="section" aria-labelledby="how-title">
+    <div class="container">
+      <h2 class="section-heading" id="how-title">How it works</h2>
+      <p class="section-subhead">One Node process, one scheduler, one path that's easy to reason about under load.</p>
+      <div class="diagram-block" role="img" aria-label="Diagram of request flow from client through Ormuz token bucket and queue to the LLM gateway, including 429 retry feedback loop.">
+<pre>   client                    Ormuz                       LLM gateway
+   ------     /v1/...     -----------------     pace      -------------
+   tools  ─────────────▶  route → bucket  ─────────────▶  upstream API
+   sdks                   ↓                                ▲
+                          token bucket + FIFO queue        │
+                          ↓                                │
+                          429 retry on first attempt ──────┘</pre>
+      </div>
+      <p class="diagram-paragraph">Each request is mapped to a bucket key, admitted by the scheduler, and forwarded with undici. If the gateway answers 429, Ormuz pauses that bucket, re-queues the request once, then gives up cleanly.</p>
+      <a class="section-trailer" href="/docs/how-it-works.html">Read the full request lifecycle -&gt;</a>
+    </div>
+  </section>
+
+  <!-- 2.5 Code example -->
+  <section class="section section--alt" aria-labelledby="code-title">
+    <div class="container">
+      <h2 class="section-heading" id="code-title">Drop it into the loop you already have</h2>
+      <p class="code-example__filename">Terminal</p>
+      <pre class="code-block"><code data-lang="bash">curl -X POST "http://localhost:8787/v1/openai/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer REQUEST_PROVIDED_KEY" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [{"role":"user","content":"hello"}]
+  }'</code></pre>
+      <p class="caption">Same request shape as the upstream. Ormuz strips routing headers, forwards the rest, and streams the response back.</p>
+    </div>
+  </section>
+
+  <!-- 2.6 Install -->
+  <section class="section" id="install" aria-labelledby="install-title">
+    <div class="container">
+      <h2 class="section-heading" id="install-title">Install in 30 seconds</h2>
+      <p class="section-subhead">macOS today. Linux supported as a sidecar; system-wide install lands soon.</p>
+      <div class="tabs" data-tabs>
+        <div class="tab-list" role="tablist" aria-label="Install method">
+          <button class="tab" role="tab" id="tab-sidecar" aria-selected="true" aria-controls="panel-sidecar" tabindex="0">Sidecar</button>
+          <button class="tab" role="tab" id="tab-systemwide" aria-selected="false" aria-controls="panel-systemwide" tabindex="-1">System-wide (macOS)</button>
+        </div>
+        <div class="tab-panel is-active" role="tabpanel" id="panel-sidecar" aria-labelledby="tab-sidecar">
+          <pre class="code-block"><code data-lang="bash">git clone https://github.com/grebmann1/ormuz-proxy.git
+cd ormuz-proxy
+npm install
+npm run dev
+# Ormuz now listens on http://localhost:8787</code></pre>
+        </div>
+        <div class="tab-panel" role="tabpanel" id="panel-systemwide" aria-labelledby="tab-systemwide">
+          <pre class="code-block"><code data-lang="bash">git clone https://github.com/grebmann1/ormuz-proxy.git
+cd ormuz-proxy
+npm install
+npm run install:autostart        # launchd + zsh env vars
+npm run install:systemproxy      # PAC + macOS auto-proxy</code></pre>
+        </div>
+      </div>
+      <p style="margin-top: var(--space-5);"><a class="link-arrow" href="/docs/install.html">See the full install guide -&gt;</a></p>
+    </div>
+  </section>
+
+  <!-- 2.7 Why "Ormuz"? -->
+  <section class="section section--alt" aria-labelledby="aside-title">
+    <div class="container">
+      <div class="aside-block">
+        <p class="section-eyebrow">Aside</p>
+        <h3 class="aside-heading" id="aside-title">Why "Ormuz"?</h3>
+        <div class="aside-body">
+          <p>The Strait of Hormuz is the narrow chokepoint that about a fifth of the world's seaborne oil passes through. Tankers don't fight the strait — they line up, take their slot, and move on.</p>
+          <p>This proxy is the strait between your code and the LLM gateway: narrow on purpose, with a queue when traffic gets dense, and the ships still get through.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer" role="contentinfo">
+  <div class="container site-footer__inner">
+    <p class="site-footer__left">Ormuz<span class="sep">·</span>MIT License<span class="sep">·</span>2026</p>
+    <nav class="site-footer__nav" aria-label="Footer">
+      <a href="https://github.com/grebmann1/ormuz-proxy" target="_blank" rel="noopener noreferrer">GitHub
+        <svg class="icon-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        <span class="sr-only">(opens in new tab)</span>
+      </a>
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/grebmann1/ormuz-proxy/issues" target="_blank" rel="noopener noreferrer">Issues
+        <svg class="icon-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        <span class="sr-only">(opens in new tab)</span>
+      </a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

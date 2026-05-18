@@ -1,0 +1,13 @@
+{
+  "name": "ormuz-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static landing + docs site for Ormuz, served by nginx in Docker.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "marked": "12.0.2"
+  }
+}

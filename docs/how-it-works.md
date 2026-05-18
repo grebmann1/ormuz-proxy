@@ -1,99 +1,178 @@
 # How Ormuz Works
 
-This document explains the internal flow so engineers can reason about behavior under load.
+This document explains the internal flow so engineers can reason about behavior under load. For setup steps see `docs/install.md`; for the broader system context (deployments, integration points) see `docs/architecture.md`.
 
 ## High-Level Architecture
 
-Ormuz is a single-process HTTP proxy with four core parts:
+Ormuz is a single-process proxy with five core parts:
 
-- `server.ts`: accepts incoming `/v1/*` requests, resolves provider target, computes bucket key, and delegates to scheduler
-- `scheduler.ts`: decides when a request can run (token bucket + bounded FIFO queue)
-- `proxy.ts`: forwards the request to the upstream LLM Gateway and streams the response back
-- `providerRouter.ts`: resolves provider by URL prefix and rewrites request path
+- `src/server.ts`: Fastify app for HTTP `/v1/*` traffic, plus a raw `'connect'` handler on the underlying `http.Server` for `CONNECT` tunnels
+- `src/scheduler.ts`: decides when a request can run (token bucket + bounded FIFO queue); also clamps upstream `Retry-After`
+- `src/proxy.ts`: forwards HTTP requests to the resolved upstream and streams the response back; derives the bucket key
+- `src/providerRouter.ts`: resolves a target by header rule, path prefix, or provider-prefix fallback
+- `src/tokenBucket.ts` + `src/queue.ts`: the primitives the scheduler is built on
+
+The same Node `http.Server` carries both modes. Ordinary `/v1/*` requests go through Fastify; `CONNECT` is intercepted before Fastify ever sees the socket (`src/server.ts:378-380`).
 
 ## Request Lifecycle
 
-1. Client sends request to `http://ormuz/v1/...`.
-2. Server resolves route using precedence:
-   - header-value exact match rules
-   - path-prefix rules (longest prefix wins)
-   - provider-prefix fallback
-   and then picks the target endpoint.
-3. Server computes a bucket key (`auth`, `global`, or `model`) based on `ORMUZ_BUCKET_KEY`.
-4. Request is submitted to the scheduler for that key.
-5. Scheduler either:
-   - forwards immediately (token available), or
-   - enqueues in FIFO until token is available, or
-   - rejects early with local `429` if queue is full / projected wait too high.
-6. Proxy sends the request to the provider-specific upstream target with cleaned headers.
-7. Upstream response is streamed directly back to the caller.
+For HTTP `/v1/*` requests:
+
+1. Client sends a request to `http://ormuz/v1/...` (`src/server.ts:167`).
+2. Server resolves the route in this precedence (`src/server.ts:174-178`, `src/providerRouter.ts`):
+   - configured header rule (exact `header=value` match)
+   - configured `pathPrefixes` (longest prefix wins)
+   - provider-prefix fallback (e.g. `/v1/openai/...`)
+3. Server computes a bucket key from `ORMUZ_BUCKET_KEY` (`src/server.ts:180`, `src/proxy.ts:133-160`).
+4. The request is submitted to the scheduler for that key (`src/server.ts:235`).
+5. The scheduler either:
+   - takes a token and runs the task immediately,
+   - enqueues FIFO until a token is free, or
+   - rejects synchronously with `QueueRejectedError` if the queue is full or projected wait exceeds `ORMUZ_MAX_QUEUE_WAIT_MS` (`src/scheduler.ts:44-49`); the server maps this to local `429` (`src/server.ts:281-288`).
+6. `forwardRequest` (`src/proxy.ts:101`) cleans hop-by-hop and internal routing headers, calls `undici.request`, then streams the upstream response back to the caller.
+7. If upstream answers `429` on the first attempt, the request is re-queued at the front once (see "Upstream 429 Handling").
+
+```
+Client -> /v1/...  -> route resolve -> bucket key -> scheduler.submit
+                                                        |
+                                                token? --+--> forwardRequest -> undici -> upstream
+                                                        |        |
+                                                        |        +-- 429 first try -> re-queue front (1x)
+                                                        +-- queue full / wait > cap -> local 429
+```
+
+## HTTPS via CONNECT (system-proxy mode)
+
+When a client (browser, `curl --proxy`, language SDK, OS proxy setting) needs to reach an HTTPS upstream through Ormuz, it sends `CONNECT host:port HTTP/1.1`. Ormuz must hand back a raw TCP tunnel — it never sees the TLS-encrypted bytes that follow. This lets Ormuz pace HTTPS traffic to providers without owning the TLS material.
+
+The handler is wired by attaching a `'connect'` listener to the underlying Node `http.Server` from Fastify's `onListen` hook (`src/server.ts:378-380`).
+
+### Lifecycle of a CONNECT
+
+For example, `CONNECT api.openai.com:443 HTTP/1.1`:
+
+1. **Parse target** (`src/server.ts:313-318`). `parseConnectTarget` (`src/server.ts:58-73`) splits the URL on the last colon and validates the port. Malformed targets get `400 Bad Request` and the socket is destroyed.
+2. **Allowlist check** (`src/server.ts:319-322`). The host (lowercased) must be in the set computed by `collectAllowedHosts(config)` (`src/server.ts:34-56`). The set is built once at app construction from the hostnames of:
+   - `config.upstreamBaseUrl`
+   - every value in `config.providerTargets`
+   - every value in `config.routingRules.pathPrefixes`
+   - every `config.routingRules.headers[].target`
+   If the set is empty (no routing configured) **all** CONNECTs are denied. This is intentional — Ormuz is not a general-purpose forward proxy, so a misconfigured instance fails closed. Denied CONNECTs get `403 Forbidden`.
+3. **Scheduler submit** (`src/server.ts:323-352`). The bucket key is `host:<lowercased-host>`, which deliberately matches what `deriveBucketKey` produces in `host` mode for HTTP traffic (`src/proxy.ts:153-155`) — see "Bucket Key Strategies" below.
+4. **Open upstream socket** (`src/server.ts:329`). Once a token is available, Ormuz calls `net.connect({ host, port })`.
+   - On `connect` (`src/server.ts:331-342`): write `HTTP/1.1 200 Connection established\r\n\r\n` to the client, then call `tunnelSockets` (`src/server.ts:83-102`) to `pipe` both directions and tear both sockets down on either `error` or `close`. Any TLS bytes already buffered in `head` are flushed to the upstream first.
+   - On upstream `error` (`src/server.ts:343-350`): write `HTTP/1.1 502 Bad Gateway\r\n\r\n` and destroy the client socket.
+5. **Queue rejection** (`src/server.ts:353-364, 365-375`). If the scheduler throws `QueueRejectedError` synchronously (queue full / projected wait too high) or asynchronously (rejected later), Ormuz writes `HTTP/1.1 429 Too Many Requests` with a `Retry-After` header in seconds and destroys the socket.
+
+### Response codes the client may see
+
+| Code | Cause |
+|------|-------|
+| `200 Connection established` | tunnel ready, bytes flow both ways |
+| `400 Bad Request` | malformed `CONNECT` target |
+| `403 Forbidden` | host not in allowlist (or no routing configured) |
+| `429 Too Many Requests` | local queue rejected; `Retry-After` set |
+| `502 Bad Gateway` | upstream TCP `connect` failed |
+
+CONNECT does not retry on upstream 429. There is no application-layer 429 to detect — Ormuz cannot read inside the tunnel.
+
+### What CONNECT does *not* do
+
+- No body inspection, no header inspection past the `CONNECT` line, no TLS termination.
+- No `model`-mode bucket key (the model name lives inside the encrypted body). With `ORMUZ_BUCKET_KEY=model`, CONNECT traffic still uses `host:<host>`, so the two paths diverge — pick `host` mode if you want unified pacing.
 
 ## Rate Limiting Model
 
-Ormuz uses a **token bucket** per bucket key:
+Each bucket key has a token bucket (`src/tokenBucket.ts`):
 
-- `capacity = effectiveRpm` (after applying safety factor)
+- `capacity = effectiveRpm` where `effectiveRpm = floor(ORMUZ_RPM * ORMUZ_SAFETY_FACTOR)` (`src/config.ts:165`)
 - `refillPerSec = effectiveRpm / 60`
-- each request costs 1 token
+- each request costs 1 token (`src/tokenBucket.ts:23-36`)
 
-This allows short bursts while keeping average traffic under the configured RPM.
+A fresh bucket starts **full** (`src/tokenBucket.ts:13`), so the first burst can be as large as `effectiveRpm`. See the operational note about this below.
 
 ### Why token bucket
 
-- Better burst handling than fixed-window counters.
-- Easy to compute wait time until next request can run.
-- Minimal state and predictable behavior for a single-instance service.
+- Tolerates short bursts within the configured average rate.
+- Easy to compute "wait until next token", which the scheduler uses for projected-wait checks.
+- Minimal state, predictable for a single-process service.
 
 ## Queueing and Rejection Policy
 
-Each bucket has a bounded FIFO queue:
+Each bucket has a bounded FIFO queue (`src/queue.ts`):
 
 - max depth: `ORMUZ_MAX_QUEUE_DEPTH`
 - max projected wait: `ORMUZ_MAX_QUEUE_WAIT_MS`
 
-If either threshold is exceeded, Ormuz returns local `429` immediately instead of letting latency grow without bound.
+`projectedWait = queue.projectedWaitMs(refillPerSec) + bucket.waitUntilNextTokenMs()` (`src/scheduler.ts:44-46`). If the queue is full or this wait would exceed the cap, the scheduler throws `QueueRejectedError` immediately. For HTTP this becomes a local `429` with `Retry-After` (`src/server.ts:281-288`); for CONNECT, `HTTP/1.1 429 Too Many Requests` on the raw socket (`src/server.ts:354-360, 365-372`).
+
+This bounds tail latency. The alternative — letting the queue grow without bound — turns the proxy into a latency amplifier under sustained overload.
 
 ## Upstream 429 Handling
 
-When upstream responds with `429`:
+When the upstream answers `429` and it is the first attempt (`src/proxy.ts:112-118`):
 
-1. Ormuz parses `Retry-After`.
-2. It pauses the token bucket for that key until that time.
-3. The same request is re-queued at the **front** once (single retry).
-4. If it fails again with `429`, the error is surfaced.
+1. `forwardRequest` parses `Retry-After` (seconds or HTTP-date, `src/proxy.ts:63-78`) and returns `{ kind: "upstream_429", retryAfterMs }` instead of forwarding to the client.
+2. The scheduler clamps the wait against `ORMUZ_MAX_RETRY_AFTER_MS` if set (`src/scheduler.ts:126-128`):
 
-This protects clients from transient upstream pressure while avoiding infinite retry loops.
+   ```ts
+   const cappedRetryAfterMs = this.options.maxRetryAfterMs
+     ? Math.min(result.retryAfterMs, this.options.maxRetryAfterMs)
+     : result.retryAfterMs;
+   ```
+
+3. The bucket is paused until `Date.now() + cappedRetryAfterMs` (`src/scheduler.ts:130`, `src/tokenBucket.ts:49-56`). While paused, no new tokens become available for that key.
+4. The same task is re-queued at the front with `attempt = 1` (`src/scheduler.ts:131-134`). On a second 429 the request is rejected (`src/scheduler.ts:137`).
+
+`ORMUZ_MAX_RETRY_AFTER_MS` exists because the upstream gateway has been observed to send `Retry-After: 60` under contention, and freezing a heavily loaded bucket for 60 seconds destroys throughput for everyone sharing that key. With a clamp of, say, 5000 ms, the bucket pauses briefly, then resumes pacing — which usually drains the contention faster than honoring the full hint. The clamp only applies to the bucket pause; we still send the upstream's original `Retry-After` to clients on a final 429 because clients should respect the upstream signal.
 
 ## Bucket Key Strategies
 
-- `auth` (default): isolates each caller token into its own bucket; best fairness for internal users
-- `global`: one shared bucket for all requests
-- `model`: separate bucket per `model` in JSON body
+`ORMUZ_BUCKET_KEY` selects how `deriveBucketKey` (`src/proxy.ts:133-160`) labels each request:
+
+| Mode | Key shape | Notes |
+|------|-----------|-------|
+| `auth` (default) | `auth:<authorization-header-verbatim>` or `auth:anonymous` | Best fairness when many internal users share one Ormuz |
+| `global` | `global` | One bucket for everything; simplest |
+| `model` | `model:<body.model>` or `model:unknown` | Per-model pacing; requires JSON body |
+| `host` | `host:<lowercased-upstream-hostname>` or `host:unknown` | Per-upstream pacing |
+
+For `host` mode, the upstream hostname comes from the resolved route's `upstreamBaseUrl` (`src/server.ts:179`). Because the CONNECT path uses the same `host:<lowercased-host>` shape (`src/server.ts:323`), a CONNECT to `api.openai.com:443` and an HTTP request that resolves to `https://api.openai.com/...` share one bucket. This is the only mode where HTTP and CONNECT pace against each other — the others fall back to `host:<host>` for CONNECT regardless.
+
+Pick `host` when you want a single budget per provider regardless of how clients reach it. Pick `auth` when you need per-caller fairness and clients only use HTTP.
 
 ## Header and Body Handling
 
-- Hop-by-hop headers are removed before forwarding.
-- Caller authorization is passed through unchanged; keys are not stored in Ormuz configuration.
-- Request body is buffered once so retries can replay exactly the same payload.
-- Responses are streamed back to the client to support completion streaming.
+For HTTP traffic (`src/proxy.ts:80-99`):
+
+- Hop-by-hop headers (`connection`, `keep-alive`, `proxy-authenticate`, `proxy-authorization`, `te`, `trailer`, `transfer-encoding`, `upgrade`) are stripped on both directions.
+- Internal routing headers (`x-ormuz-target`, `x-ormuz-provider`, `x-ormuz-route`) are not forwarded upstream.
+- The inbound `host` header is dropped; `undici` sets the right one for the upstream URL.
+- Caller `Authorization` is forwarded unchanged. Ormuz does not store keys.
+- The body is buffered as a `Buffer` (`src/server.ts:113-116, 170`) so the single retry on upstream 429 can replay byte-for-byte.
+- The upstream response is streamed back via `reply.send(upstream.body)` (`src/proxy.ts:128`), so streaming completions work end to end.
+
+For CONNECT, none of this applies — Ormuz pipes raw bytes after the `200`.
 
 ## Provider Target Configuration
 
-Provider targets are loaded in a flexible way:
+Targets and routing are loaded from (highest to lowest precedence merged per-key, `src/config.ts:141-161`):
 
-- `ORMUZ_PROVIDER_TARGETS` JSON map
-- optional `ORMUZ_PROVIDER_TARGETS_FILE` (JSON/YAML), which overrides env map keys
+- `ORMUZ_PROVIDER_TARGETS` — JSON inline; either the legacy provider map or the structured `{ providers, routes }` form.
+- `ORMUZ_PROVIDER_TARGETS_FILE` — explicit path; same shapes, plus a minimal YAML form for the legacy map.
+- `config/provider-targets.json` — auto-loaded if neither env var is set and the file exists.
 
-This allows easy addition of future providers without code changes.
+`config/provider-targets.json` in this repo is an example upstream-gateway config, with `providers.openai`, `providers.anthropic`, and `providers.gemini` all pointing at paths under `your-llm-gateway.example.com`, plus `routes.pathPrefixes` and `routes.headers` covering the same three. Because all four sources share the same hostname, `collectAllowedHosts` resolves to a single host — so CONNECT only allows that gateway.
 
-Routing rules can be configured in `routes.pathPrefixes` and `routes.headers`:
+Routing rules:
 
-- `routes.headers`: map exact header/value pairs to targets
-- `routes.pathPrefixes`: map incoming path prefixes to targets
+- `routes.headers`: exact `header == value` matches (header names are lowercased on load, `src/config.ts:133-136`).
+- `routes.pathPrefixes`: longest prefix wins; the matched prefix is stripped from the upstream path (`src/providerRouter.ts:78-95`).
+- Provider-prefix fallback only applies if the first or second path segment matches a configured provider (`src/providerRouter.ts:26-30`).
 
 ## Hook Lifecycle
 
-Ormuz exposes lifecycle hooks for extension and custom monitoring:
+The HTTP path emits these via `HookRegistry` (`src/hooks.ts`):
 
 - `onRequestReceived`
 - `onProviderResolved`
@@ -103,35 +182,45 @@ Ormuz exposes lifecycle hooks for extension and custom monitoring:
 - `onUpstream429`
 - `onRequestCompleted`
 
-Hook handlers are best-effort and never block request processing.
+Hook handlers run inside `safelyRun` (`src/hooks.ts:27-36`); thrown errors are swallowed so a buggy hook can't break the proxy path. CONNECT does not currently emit lifecycle hooks — this is a known gap.
 
 ## Observability
 
-Use `/metrics` to monitor behavior:
+`/metrics` exposes Prometheus output (`src/metrics.ts`):
 
-- `ormuz_queue_depth{key}`: current queue size per bucket
-- `ormuz_queue_wait_seconds{key}`: queued wait latency distribution
-- `ormuz_tokens_available{key}`: current token availability
-- `ormuz_requests_total{outcome}`: forwarded, queued, client_429, upstream_429
-- `ormuz_upstream_status_total{code}`: upstream status distribution
+- `ormuz_queue_depth{key}` — current queued requests per bucket
+- `ormuz_queue_wait_seconds{key}` — histogram of dequeue wait
+- `ormuz_tokens_available{key}` — current token level per bucket
+- `ormuz_requests_total{outcome}` — `forwarded` | `queued` | `client_429` | `upstream_429`
+- `ormuz_upstream_status_total{code}` — count per upstream status code (also incremented as `200` for successful CONNECT establishments, `src/server.ts:336`)
+
+Under `ORMUZ_BUCKET_KEY=host`, the `key` label looks like `host:api.openai.com`, which makes per-provider dashboards a one-line PromQL query (`sum by (key) (rate(ormuz_requests_total[1m]))` filtered to `key=~"host:.*"`). Under `auth`, `key` contains the raw `Authorization` header value — be careful where you ship those metrics.
 
 Suggested alerts:
 
-- sustained growth in `ormuz_queue_depth`
-- spikes in `client_429` (local overload)
-- spikes in `upstream_429` (gateway pressure or shared-key contention)
+- sustained growth in `ormuz_queue_depth{key=...}` (the bucket is structurally undersized)
+- spikes in `ormuz_requests_total{outcome="client_429"}` (local overload — clients should back off)
+- spikes in `ormuz_requests_total{outcome="upstream_429"}` (gateway pressure or shared-key contention)
+- `ormuz_upstream_status_total{code="502"}` rising for `host`-mode buckets that map to CONNECT (likely DNS or network problem to that provider)
 
 ## Operational Tuning
 
 Start with:
 
-- `ORMUZ_RPM`: your known upstream limit
-- `ORMUZ_SAFETY_FACTOR=0.95`
-- `ORMUZ_MAX_QUEUE_DEPTH=200`
-- `ORMUZ_MAX_QUEUE_WAIT_MS=60000`
+- `ORMUZ_RPM`: the upstream RPM you have committed to.
+- `ORMUZ_SAFETY_FACTOR=0.95`: small headroom under the announced limit.
+- `ORMUZ_MAX_QUEUE_DEPTH=200`, `ORMUZ_MAX_QUEUE_WAIT_MS=60000`: reasonable defaults for chat-style workloads.
+- `ORMUZ_MAX_RETRY_AFTER_MS`: leave unset until you see the upstream send long Retry-After values; then start with 5000–10000 ms.
 
-Then tune based on metrics:
+Things to know before tuning:
 
-- If queue is usually empty and no 429s, you can increase RPM/safety slightly.
-- If local 429s appear too often, increase queue bounds or lower incoming concurrency.
-- If upstream 429s persist, reduce effective RPM or separate traffic into more bucket keys.
+- **The bucket starts full.** At `ORMUZ_RPM=1200`, a fresh bucket lets ~1000 requests through in under half a second before pacing kicks in. If your upstream cannot absorb that initial burst, lower `ORMUZ_SAFETY_FACTOR` or split traffic across more bucket keys (e.g. switch from `global` to `host` or `auth`).
+- **Choosing `host` vs `auth`.** Use `host` when you want one shared budget per provider (good when one Ormuz fronts a small number of providers and many callers, and you want CONNECT to share with HTTP). Use `auth` when you want per-caller fairness and you control all clients. `model` is only useful when several models share an upstream and have different commercial limits.
+- **`ORMUZ_MAX_RETRY_AFTER_MS`.** Set this when you've seen an upstream send `Retry-After: 60` under contention — letting Ormuz freeze a busy bucket for 60 s tanked throughput in our load tests. A clamp around 5–10 s usually recovers faster than honoring the full hint.
+
+Iterate based on metrics:
+
+- Queue empty, no 429s -> raise `ORMUZ_RPM` or `ORMUZ_SAFETY_FACTOR` modestly.
+- Frequent local 429s (`outcome="client_429"`) -> raise queue bounds, lower client concurrency, or split into more bucket keys.
+- Persistent upstream 429s -> lower effective RPM, narrow bucket keys (so noisy neighbors don't drag everyone), or set `ORMUZ_MAX_RETRY_AFTER_MS`.
+- CONNECT clients seeing `403` -> the destination host is not in `collectAllowedHosts(config)`. Add it via `providerTargets`, `pathPrefixes`, or a `headers` rule (`src/server.ts:34-56`).
