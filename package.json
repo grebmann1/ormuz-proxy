@@ -16,7 +16,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "install:autostart": "bash scripts/install-autostart.sh",
+    "uninstall:autostart": "bash scripts/uninstall-autostart.sh"
   },
   "bin": {
     "ormuz": "dist/cli.js"

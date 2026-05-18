@@ -49,6 +49,37 @@ npm run dev:cli -- --rpm 120 --provider-targets '{"openai":"https://api.openai.c
 npm run dev:cli -- --rpm 120 --provider-targets-file ./providers.json
 ```
 
+## Install as a system-wide proxy (macOS)
+
+Make Ormuz start at login and route LLM SDK traffic through it automatically:
+
+```bash
+npm install
+npm run install:autostart
+```
+
+This:
+1. Builds `dist/`.
+2. Installs `~/Library/LaunchAgents/com.ormuz.proxy.plist` so launchd starts Ormuz at login (with `--rpm 30 --max-retry-after-ms 5000` by default; edit the plist to change).
+3. Appends an env-var block to `~/.zshrc`:
+   ```
+   export OPENAI_BASE_URL=http://127.0.0.1:8787/v1/openai
+   export ANTHROPIC_BASE_URL=http://127.0.0.1:8787/v1/anthropic
+   export GEMINI_BASE_URL=http://127.0.0.1:8787/v1/gemini
+   ```
+
+Open a new shell (or `source ~/.zshrc`) and any tool that honors these env vars (Claude Code CLI, `openai`/`@anthropic-ai/sdk` SDKs, ad-hoc Python/Node scripts) will route through Ormuz.
+
+Logs land at `~/Library/Logs/ormuz.{out,err}.log`.
+
+To remove everything:
+
+```bash
+npm run uninstall:autostart
+```
+
+**Coverage caveat:** GUI apps (ChatGPT desktop, Claude desktop, Cursor, etc.) typically ignore env vars and hard-code the upstream URL — they won't be routed through Ormuz with this setup.
+
 ## Run checks
 
 ```bash
