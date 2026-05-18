@@ -70,6 +70,7 @@ npm test
 | `ORMUZ_BUCKET_KEY` | Bucket strategy: `auth`, `global`, `model` | `auth` |
 | `ORMUZ_MAX_QUEUE_DEPTH` | Max queued requests per bucket | `200` |
 | `ORMUZ_MAX_QUEUE_WAIT_MS` | Max projected wait before local reject | `60000` |
+| `ORMUZ_MAX_RETRY_AFTER_MS` | Cap how long the bucket pauses on upstream `429 Retry-After` (unset = honor upstream value verbatim) | empty |
 | `ORMUZ_LOG_LEVEL` | Fastify/Pino log level | `info` |
 
 ## Routing

@@ -42,6 +42,7 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     refillPerSec: config.refillPerSec,
     maxQueueDepth: config.maxQueueDepth,
     maxQueueWaitMs: config.maxQueueWaitMs,
+    maxRetryAfterMs: config.maxRetryAfterMs,
     hooks: {
       ...schedulerHooks,
       onQueued: (bucketKey, depth) => {

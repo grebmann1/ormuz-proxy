@@ -16,6 +16,7 @@ type CliArgs = {
   bucketKey?: string;
   maxQueueDepth?: string;
   maxQueueWaitMs?: string;
+  maxRetryAfterMs?: string;
   logLevel?: string;
   safetyFactor?: string;
   live: boolean;
@@ -58,6 +59,10 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--max-queue-wait-ms":
         args.maxQueueWaitMs = next;
+        i += 1;
+        break;
+      case "--max-retry-after-ms":
+        args.maxRetryAfterMs = next;
         i += 1;
         break;
       case "--log-level":
@@ -116,6 +121,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   if (parsed.bucketKey) envOverrides.ORMUZ_BUCKET_KEY = parsed.bucketKey;
   if (parsed.maxQueueDepth) envOverrides.ORMUZ_MAX_QUEUE_DEPTH = parsed.maxQueueDepth;
   if (parsed.maxQueueWaitMs) envOverrides.ORMUZ_MAX_QUEUE_WAIT_MS = parsed.maxQueueWaitMs;
+  if (parsed.maxRetryAfterMs) envOverrides.ORMUZ_MAX_RETRY_AFTER_MS = parsed.maxRetryAfterMs;
   if (parsed.logLevel) envOverrides.ORMUZ_LOG_LEVEL = parsed.logLevel;
   if (parsed.safetyFactor) envOverrides.ORMUZ_SAFETY_FACTOR = parsed.safetyFactor;
 

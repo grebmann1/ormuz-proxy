@@ -30,6 +30,7 @@ export type SchedulerOptions = {
   refillPerSec: number;
   maxQueueDepth: number;
   maxQueueWaitMs: number;
+  maxRetryAfterMs?: number;
   hooks?: SchedulerHooks;
 };
 
@@ -122,8 +123,11 @@ export class RequestScheduler<T> {
         return;
       }
 
-      this.options.hooks?.onUpstream429?.(bucketKey, result.retryAfterMs);
-      state.bucket.pauseUntil(Date.now() + result.retryAfterMs);
+      const cappedRetryAfterMs = this.options.maxRetryAfterMs
+        ? Math.min(result.retryAfterMs, this.options.maxRetryAfterMs)
+        : result.retryAfterMs;
+      this.options.hooks?.onUpstream429?.(bucketKey, cappedRetryAfterMs);
+      state.bucket.pauseUntil(Date.now() + cappedRetryAfterMs);
       if (item.attempt === 0) {
         state.queue.enqueueFront({ ...item, attempt: 1, enqueuedAtMs: Date.now() });
         this.schedule(bucketKey, state);

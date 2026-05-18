@@ -30,6 +30,7 @@ const schema = z.object({
   ORMUZ_BUCKET_KEY: bucketKeySchema.default("auth"),
   ORMUZ_MAX_QUEUE_DEPTH: z.coerce.number().int().positive().default(200),
   ORMUZ_MAX_QUEUE_WAIT_MS: z.coerce.number().int().positive().default(60_000),
+  ORMUZ_MAX_RETRY_AFTER_MS: z.coerce.number().int().positive().optional(),
   ORMUZ_LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info")
 });
 
@@ -47,6 +48,7 @@ export type AppConfig = {
   bucketKeyMode: BucketKeyMode;
   maxQueueDepth: number;
   maxQueueWaitMs: number;
+  maxRetryAfterMs?: number;
   logLevel: "fatal" | "error" | "warn" | "info" | "debug" | "trace";
 };
 export type HeaderRouteRule = {
@@ -177,6 +179,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     bucketKeyMode: parsed.ORMUZ_BUCKET_KEY,
     maxQueueDepth: parsed.ORMUZ_MAX_QUEUE_DEPTH,
     maxQueueWaitMs: parsed.ORMUZ_MAX_QUEUE_WAIT_MS,
+    maxRetryAfterMs: parsed.ORMUZ_MAX_RETRY_AFTER_MS,
     logLevel: parsed.ORMUZ_LOG_LEVEL
   };
 }
