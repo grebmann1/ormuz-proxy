@@ -78,7 +78,33 @@ To remove everything:
 npm run uninstall:autostart
 ```
 
-**Coverage caveat:** GUI apps (ChatGPT desktop, Claude desktop, Cursor, etc.) typically ignore env vars and hard-code the upstream URL — they won't be routed through Ormuz with this setup.
+**Coverage caveat:** GUI apps (ChatGPT desktop, Claude desktop, Cursor, etc.) typically ignore env vars and hard-code the upstream URL — they won't be routed through Ormuz with this setup. To catch them too, also install the system proxy below.
+
+## Catch GUI apps too: system proxy + PAC (macOS)
+
+Adds host-level rate limiting for any client that respects the macOS system proxy (most browsers, Electron apps, many CLIs). Ormuz handles HTTPS via `CONNECT` tunneling — no TLS interception, no custom CA, no MITM.
+
+```bash
+npm run install:systemproxy
+```
+
+This:
+1. Reads the hostnames from `config/provider-targets.json` (or `ORMUZ_PROVIDER_TARGETS_FILE`).
+2. Generates `~/.config/ormuz/proxy.pac` that routes only those hosts through `127.0.0.1:8787` and sends everything else `DIRECT`.
+3. Registers the PAC URL with every active macOS network service via `networksetup -setautoproxyurl`.
+
+After this, any matching `https://<configured-host>/...` request from a system-proxy-aware client is tunneled through Ormuz and rate-limited per host. The bucket key is `host:<hostname>`, so HTTP and CONNECT traffic to the same upstream share a budget if you set `ORMUZ_BUCKET_KEY=host`.
+
+To remove:
+
+```bash
+npm run uninstall:systemproxy
+```
+
+**Coverage caveats:**
+- The PAC only routes hosts in your config — it doesn't break unrelated traffic.
+- Cert-pinned apps and apps that ignore the system proxy still bypass Ormuz.
+- Because Ormuz only sees `CONNECT host:port` (not the URL or body), tunnel-mode rate limiting is per-host only — model/path-level routing requires direct `/v1/<provider>/...` access.
 
 ## Run checks
 

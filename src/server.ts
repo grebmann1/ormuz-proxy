@@ -1,3 +1,6 @@
+import { connect as netConnect, type Socket } from "node:net";
+import type { IncomingMessage } from "node:http";
+
 import Fastify, { type FastifyInstance } from "fastify";
 
 import { loadConfig, type AppConfig } from "./config.js";
@@ -7,6 +10,14 @@ import { resolveConfiguredRoute, resolveProviderRoute } from "./providerRouter.j
 import { deriveBucketKey, forwardRequest } from "./proxy.js";
 import { RequestScheduler, type SchedulerHooks } from "./scheduler.js";
 import { QueueRejectedError } from "./types.js";
+
+function safeHostname(url: string): string | undefined {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
 
 function parseBodyForBucket(body: Buffer, contentType: string | undefined): unknown {
   if (!contentType?.includes("application/json") || body.length === 0) {
@@ -18,6 +29,76 @@ function parseBodyForBucket(body: Buffer, contentType: string | undefined): unkn
   } catch {
     return undefined;
   }
+}
+
+function collectAllowedHosts(config: AppConfig): Set<string> {
+  const hosts = new Set<string>();
+  const addUrl = (url: string | undefined): void => {
+    if (!url) {
+      return;
+    }
+    const host = safeHostname(url);
+    if (host) {
+      hosts.add(host);
+    }
+  };
+  addUrl(config.upstreamBaseUrl);
+  for (const target of Object.values(config.providerTargets)) {
+    addUrl(target);
+  }
+  for (const target of Object.values(config.routingRules.pathPrefixes)) {
+    addUrl(target);
+  }
+  for (const rule of config.routingRules.headers) {
+    addUrl(rule.target);
+  }
+  return hosts;
+}
+
+function parseConnectTarget(rawUrl: string): { host: string; port: number } | undefined {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const colonIdx = trimmed.lastIndexOf(":");
+  if (colonIdx <= 0 || colonIdx === trimmed.length - 1) {
+    return undefined;
+  }
+  const host = trimmed.slice(0, colonIdx).toLowerCase();
+  const port = Number(trimmed.slice(colonIdx + 1));
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    return undefined;
+  }
+  return { host, port };
+}
+
+function writeAndDestroy(socket: Socket, response: string): void {
+  try {
+    socket.write(response, () => socket.destroy());
+  } catch {
+    socket.destroy();
+  }
+}
+
+function tunnelSockets(client: Socket, upstream: Socket, head: Buffer | undefined): void {
+  if (head && head.length > 0) {
+    upstream.write(head);
+  }
+  let closed = false;
+  const closeBoth = (): void => {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    client.destroy();
+    upstream.destroy();
+  };
+  client.on("error", closeBoth);
+  client.on("close", closeBoth);
+  upstream.on("error", closeBoth);
+  upstream.on("close", closeBoth);
+  client.pipe(upstream);
+  upstream.pipe(client);
 }
 
 export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInstance {
@@ -88,7 +169,15 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     const requestId = String(request.id);
     const rawBody = (request.body as Buffer | undefined) ?? Buffer.alloc(0);
     const bodyForKey = parseBodyForBucket(rawBody, request.headers["content-type"]);
-    const bucketKey = deriveBucketKey(config.bucketKeyMode, request.headers, bodyForKey);
+    const [splitPath, queryString = ""] = request.url.split("?");
+    const originalPath = splitPath ?? "/";
+    const configuredRoute = resolveConfiguredRoute(originalPath, request.headers, config.routingRules);
+    const providerRoute = resolveProviderRoute(originalPath, config.providerTargets);
+    const resolvedRoute = configuredRoute ?? providerRoute;
+    const upstreamBaseUrl = resolvedRoute?.upstreamBaseUrl ?? config.upstreamBaseUrl;
+    const pathOnly = resolvedRoute?.rewrittenPath ?? originalPath;
+    const upstreamHost = upstreamBaseUrl ? safeHostname(upstreamBaseUrl) : undefined;
+    const bucketKey = deriveBucketKey(config.bucketKeyMode, request.headers, bodyForKey, upstreamHost);
     requestContext.set(bucketKey, {
       requestId,
       method: request.method,
@@ -100,13 +189,6 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
       originalPath: request.url,
       bucketKey
     });
-    const [splitPath, queryString = ""] = request.url.split("?");
-    const originalPath = splitPath ?? "/";
-    const configuredRoute = resolveConfiguredRoute(originalPath, request.headers, config.routingRules);
-    const providerRoute = resolveProviderRoute(originalPath, config.providerTargets);
-    const resolvedRoute = configuredRoute ?? providerRoute;
-    const upstreamBaseUrl = resolvedRoute?.upstreamBaseUrl ?? config.upstreamBaseUrl;
-    const pathOnly = resolvedRoute?.rewrittenPath ?? originalPath;
 
     const providerOrRouteConfigured =
       Object.keys(config.providerTargets).length > 0 ||
@@ -224,6 +306,77 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     } finally {
       requestContext.delete(bucketKey);
     }
+  });
+
+  const allowedConnectHosts = collectAllowedHosts(config);
+
+  const handleConnect = (req: IncomingMessage, clientSocket: Socket, head: Buffer): void => {
+    const target = parseConnectTarget(req.url ?? "");
+    if (!target) {
+      writeAndDestroy(clientSocket, "HTTP/1.1 400 Bad Request\r\n\r\n");
+      return;
+    }
+    if (allowedConnectHosts.size === 0 || !allowedConnectHosts.has(target.host)) {
+      writeAndDestroy(clientSocket, "HTTP/1.1 403 Forbidden\r\n\r\n");
+      return;
+    }
+    const bucketKey = `host:${target.host}`;
+
+    let pending: Promise<void>;
+    try {
+      pending = scheduler.submit(bucketKey, () => {
+        return new Promise((resolveTask) => {
+          const upstream = netConnect({ host: target.host, port: target.port });
+          let settled = false;
+          upstream.once("connect", () => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            metrics.recordUpstreamStatus(200);
+            metrics.recordForwarded();
+            clientSocket.write("HTTP/1.1 200 Connection established\r\n\r\n", () => {
+              tunnelSockets(clientSocket, upstream, head);
+            });
+            resolveTask({ kind: "ok", value: undefined });
+          });
+          upstream.once("error", () => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            writeAndDestroy(clientSocket, "HTTP/1.1 502 Bad Gateway\r\n\r\n");
+            resolveTask({ kind: "ok", value: undefined });
+          });
+        });
+      });
+    } catch (error) {
+      if (error instanceof QueueRejectedError) {
+        const retrySec = Math.ceil(error.retryAfterMs / 1000);
+        writeAndDestroy(
+          clientSocket,
+          `HTTP/1.1 429 Too Many Requests\r\nRetry-After: ${retrySec}\r\n\r\n`
+        );
+        return;
+      }
+      writeAndDestroy(clientSocket, "HTTP/1.1 502 Bad Gateway\r\n\r\n");
+      return;
+    }
+    pending.catch((error) => {
+      if (error instanceof QueueRejectedError) {
+        const retrySec = Math.ceil(error.retryAfterMs / 1000);
+        writeAndDestroy(
+          clientSocket,
+          `HTTP/1.1 429 Too Many Requests\r\nRetry-After: ${retrySec}\r\n\r\n`
+        );
+        return;
+      }
+      writeAndDestroy(clientSocket, "HTTP/1.1 502 Bad Gateway\r\n\r\n");
+    });
+  };
+
+  app.addHook("onListen", async () => {
+    app.server.on("connect", handleConnect);
   });
 
   return app;

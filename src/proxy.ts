@@ -131,9 +131,10 @@ export async function forwardRequest(params: ProxyRequest): Promise<ScheduledRes
 }
 
 export function deriveBucketKey(
-  mode: "auth" | "global" | "model",
+  mode: "auth" | "global" | "model" | "host",
   headers: Record<string, string | string[] | undefined>,
-  body: unknown
+  body: unknown,
+  upstreamHost?: string
 ): string {
   if (mode === "global") {
     return "global";
@@ -147,6 +148,10 @@ export function deriveBucketKey(
       }
     }
     return "model:unknown";
+  }
+
+  if (mode === "host") {
+    return upstreamHost ? `host:${upstreamHost.toLowerCase()}` : "host:unknown";
   }
 
   const auth = headers.authorization ?? headers.Authorization;

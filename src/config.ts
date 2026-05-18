@@ -2,7 +2,7 @@ import { z } from "zod";
 import { existsSync, readFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 
-const bucketKeySchema = z.enum(["auth", "global", "model"]);
+const bucketKeySchema = z.enum(["auth", "global", "model", "host"]);
 const providerTargetsSchema = z.record(z.string().min(1), z.string().url());
 const headerRouteRuleSchema = z.object({
   header: z.string().min(1),

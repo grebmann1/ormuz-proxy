@@ -18,7 +18,9 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "install:autostart": "bash scripts/install-autostart.sh",
-    "uninstall:autostart": "bash scripts/uninstall-autostart.sh"
+    "uninstall:autostart": "bash scripts/uninstall-autostart.sh",
+    "install:systemproxy": "bash scripts/install-systemproxy.sh",
+    "uninstall:systemproxy": "bash scripts/uninstall-systemproxy.sh"
   },
   "bin": {
     "ormuz": "dist/cli.js"
