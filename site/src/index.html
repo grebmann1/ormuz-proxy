@@ -57,7 +57,7 @@ html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-famil
       <div class="hero__copy">
         <p class="hero__eyebrow">A proxy for your LLM gateway</p>
         <h1 class="hero__headline" id="hero-title">Calm traffic<br>through a narrow strait.</h1>
-        <p class="hero__subhead">Ormuz sits between your code and the LLM gateway. It paces requests with a token bucket, queues bursts in FIFO, and retries upstream 429s so your tools stop hitting the rate limit.</p>
+        <p class="hero__subhead">Ormuz (Hormuz in English) sits between your code and the LLM gateway. It paces requests with a token bucket, queues bursts in FIFO, and retries upstream 429s so your tools stop hitting the rate limit.</p>
         <div class="hero__ctas">
           <a class="btn btn--primary" href="#install">Install in 30 seconds</a>
           <a class="link-arrow" href="/docs/">Read the docs -&gt;</a>
@@ -66,20 +66,32 @@ html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-famil
       </div>
       <div class="hero__visual">
         <div class="hero__visual-frame">
-          <svg viewBox="0 0 480 360" role="img" aria-label="Map of a narrow strait between your code and the LLM gateway, with three small ships moving left through the strait." class="strait-svg" width="480" height="360" preserveAspectRatio="xMidYMid meet">
+          <svg viewBox="0 0 480 360" role="img" aria-label="Map of a narrow strait between the LLM gateway and your code, with three small ships moving left through the strait." class="strait-svg" width="480" height="360" preserveAspectRatio="xMidYMid meet">
             <rect class="strait-bg" x="0" y="0" width="480" height="360" rx="10" ry="10"/>
             <path class="strait-land" d="M0,0 L480,0 L480,120 C420,118 360,124 300,128 C240,134 180,138 120,140 C72,141 36,140 0,138 Z"/>
             <path class="strait-land" d="M0,360 L0,222 C36,220 72,221 120,222 C180,224 240,228 300,232 C360,236 420,242 480,240 L480,360 Z"/>
             <path class="strait-arc" d="M40,180 Q200,168 360,176"/>
             <path class="strait-arc" d="M40,196 Q200,188 340,194"/>
             <path class="strait-arc" d="M40,164 Q200,156 360,160"/>
-            <line class="strait-endcap" x1="20" y1="166" x2="20" y2="194"/>
-            <text class="strait-label" x="20" y="156" text-anchor="start">YOUR CODE</text>
-            <line class="strait-endcap" x1="460" y1="166" x2="460" y2="194"/>
-            <text class="strait-label" x="460" y="156" text-anchor="end">GATEWAY</text>
-            <polygon class="strait-ship strait-ship--c" points="174,182 186,176 186,188"/>
-            <polygon class="strait-ship strait-ship--b" points="294,178 306,172 306,184"/>
-            <polygon class="strait-ship strait-ship--a" points="374,180 386,174 386,186"/>
+            <line class="strait-endcap" x1="20" y1="160" x2="20" y2="206"/>
+            <text class="strait-label strait-label--gateway" x="20" y="154" text-anchor="start">GATEWAY</text>
+            <line class="strait-endcap" x1="460" y1="140" x2="460" y2="224"/>
+            <text class="strait-label strait-label--code" x="460" y="156" text-anchor="end">YOUR CODE</text>
+            <g class="strait-ship strait-ship--c">
+              <path class="strait-ship-wake" d="M188 182 C193 182 198 182 202 182"/>
+              <path class="strait-ship-hull" d="M188 184 L168 184 L172 189 L184 189 Z"/>
+              <path class="strait-ship-sail" d="M180 184 L180 173 L173 182 Z"/>
+            </g>
+            <g class="strait-ship strait-ship--b">
+              <path class="strait-ship-wake" d="M308 178 C313 178 318 178 322 178"/>
+              <path class="strait-ship-hull" d="M308 180 L288 180 L292 185 L304 185 Z"/>
+              <path class="strait-ship-sail" d="M300 180 L300 169 L293 178 Z"/>
+            </g>
+            <g class="strait-ship strait-ship--a">
+              <path class="strait-ship-wake" d="M388 180 C393 180 398 180 402 180"/>
+              <path class="strait-ship-hull" d="M388 182 L368 182 L372 187 L384 187 Z"/>
+              <path class="strait-ship-sail" d="M380 182 L380 171 L373 180 Z"/>
+            </g>
           </svg>
         </div>
       </div>

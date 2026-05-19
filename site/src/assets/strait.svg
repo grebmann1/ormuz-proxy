@@ -1,16 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-label="Map of a narrow strait between your code and the LLM gateway, with three small ships moving left through the strait.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-label="Map of a narrow strait between the LLM gateway and your code, with three small ships moving left through the strait.">
   <style>
     .land { fill: #ebe8df; stroke: #dcd6c5; stroke-width: 1; }
     .arc { fill: none; stroke: #dcd6c5; stroke-width: 1; stroke-dasharray: 2 6; opacity: .4; }
-    .ship { fill: #c1672b; transform-box: fill-box; transform-origin: center; }
+    .ship { transform-box: fill-box; transform-origin: center; }
+    .ship-hull { fill: #c1672b; }
+    .ship-sail { fill: #cf8b5a; }
+    .ship-wake { fill: none; stroke: #cf8b5a; stroke-width: .8; stroke-dasharray: 1.2 2.2; opacity: .7; }
     .endcap { fill: none; stroke: #0f7a8a; stroke-width: 1; }
     .label { fill: #6b7a85; font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: 0.08em; }
+    .label-code { fill: #6b7a85; font-size: 9px; letter-spacing: 0.08em; font-weight: 500; }
+    .label-gateway { fill: #0e4a6b; font-size: 12px; letter-spacing: 0.1em; font-weight: 600; opacity: 1; }
     .bg { fill: #fbfaf6; }
     @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-    @keyframes drift { 0% { transform: translateX(0); } 100% { transform: translateX(-24px); } }
-    .ship-a { animation: bob 4s ease-in-out infinite, drift 12s linear infinite; }
-    .ship-b { animation: bob 4s ease-in-out 0.4s infinite, drift 12s linear -4s infinite; }
-    .ship-c { animation: bob 4s ease-in-out 0.8s infinite, drift 12s linear -8s infinite; }
+    @keyframes drift { 0% { transform: translateX(0); } 100% { transform: translateX(-56px); } }
+    .ship-a { animation: bob 4s ease-in-out infinite, drift 18s linear infinite; }
+    .ship-b { animation: bob 4s ease-in-out 0.4s infinite, drift 18s linear -6s infinite; }
+    .ship-c { animation: bob 4s ease-in-out 0.8s infinite, drift 18s linear -12s infinite; }
     @media (prefers-reduced-motion: reduce) {
       .ship-a, .ship-b, .ship-c { animation: none; }
     }
@@ -20,7 +25,9 @@
       .arc { stroke: #1d2b36; }
       .endcap { stroke: #7ed3df; }
       .label { fill: #7a858f; }
-      .ship { fill: #e3a06f; }
+      .ship-hull { fill: #e3a06f; }
+      .ship-sail { fill: #efbc92; }
+      .ship-wake { stroke: #efbc92; }
     }
   </style>
   <rect class="bg" x="0" y="0" width="480" height="360" rx="10" ry="10"/>
@@ -29,11 +36,23 @@
   <path class="arc" d="M40,180 Q200,168 360,176"/>
   <path class="arc" d="M40,196 Q200,188 340,194"/>
   <path class="arc" d="M40,164 Q200,156 360,160"/>
-  <line class="endcap" x1="20" y1="166" x2="20" y2="194"/>
-  <text class="label" x="20" y="156" text-anchor="start">YOUR CODE</text>
-  <line class="endcap" x1="460" y1="166" x2="460" y2="194"/>
-  <text class="label" x="460" y="156" text-anchor="end">GATEWAY</text>
-  <polygon class="ship ship-c" points="174,182 186,176 186,188"/>
-  <polygon class="ship ship-b" points="294,178 306,172 306,184"/>
-  <polygon class="ship ship-a" points="374,180 386,174 386,186"/>
+  <line class="endcap" x1="20" y1="160" x2="20" y2="206"/>
+  <text class="label label-gateway" x="20" y="154" text-anchor="start">GATEWAY</text>
+  <line class="endcap" x1="460" y1="140" x2="460" y2="224"/>
+  <text class="label label-code" x="460" y="156" text-anchor="end">YOUR CODE</text>
+  <g class="ship ship-c">
+    <path class="ship-wake" d="M188 182 C193 182 198 182 202 182"/>
+    <path class="ship-hull" d="M188 184 L168 184 L172 189 L184 189 Z"/>
+    <path class="ship-sail" d="M180 184 L180 173 L173 182 Z"/>
+  </g>
+  <g class="ship ship-b">
+    <path class="ship-wake" d="M308 178 C313 178 318 178 322 178"/>
+    <path class="ship-hull" d="M308 180 L288 180 L292 185 L304 185 Z"/>
+    <path class="ship-sail" d="M300 180 L300 169 L293 178 Z"/>
+  </g>
+  <g class="ship ship-a">
+    <path class="ship-wake" d="M388 180 C393 180 398 180 402 180"/>
+    <path class="ship-hull" d="M388 182 L368 182 L372 187 L384 187 Z"/>
+    <path class="ship-sail" d="M380 182 L380 171 L373 180 Z"/>
+  </g>
 </svg>

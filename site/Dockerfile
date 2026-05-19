@@ -4,8 +4,9 @@
 #
 # Build:
 #   docker build -f site/Dockerfile -t ormuz-site:latest .
-# Run:
-#   docker run --rm -p 8080:80 ormuz-site:latest
+# Run locally:
+#   docker run --rm -e PORT=8080 -p 8080:8080 ormuz-site:latest
+# Heroku injects $PORT at runtime; nothing else to configure.
 
 FROM node:20-alpine AS builder
 WORKDIR /work/site
@@ -23,6 +24,13 @@ COPY docs /work/docs
 RUN node build.mjs
 
 FROM nginx:alpine AS runtime
+
+# envsubst comes from gettext on alpine.
+RUN apk add --no-cache gettext
+
 COPY --from=builder /work/site/dist /usr/share/nginx/html
-COPY site/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+COPY site/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY site/docker-entrypoint.sh /docker-entrypoint-ormuz.sh
+RUN chmod +x /docker-entrypoint-ormuz.sh
+
+CMD ["/docker-entrypoint-ormuz.sh"]

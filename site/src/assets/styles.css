@@ -939,7 +939,23 @@ code:not(.code-block code):not(.diagram-block code) {
   font-size: 9px;
   letter-spacing: 0.08em;
 }
-.strait-ship { fill: var(--coast); transform-box: fill-box; transform-origin: center; }
+.strait-label--code {
+  fill: var(--ink-3);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+.strait-label--gateway {
+  fill: var(--strait);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  opacity: 1;
+}
+.strait-ship { transform-box: fill-box; transform-origin: center; }
+.strait-ship-hull { fill: var(--coast); }
+.strait-ship-sail { fill: color-mix(in srgb, var(--coast) 78%, var(--paper) 22%); }
+.strait-ship-wake { fill: none; stroke: color-mix(in srgb, var(--coast) 70%, var(--paper) 30%); stroke-width: 0.8; stroke-dasharray: 1.2 2.2; opacity: 0.7; }
 
 @keyframes ormuz-bob {
   0%, 100% { transform: translateY(0); }
@@ -947,16 +963,16 @@ code:not(.code-block code):not(.diagram-block code) {
 }
 @keyframes ormuz-drift {
   0% { transform: translateX(0); }
-  100% { transform: translateX(-24px); }
+  100% { transform: translateX(-56px); }
 }
 .strait-ship--a {
-  animation: ormuz-bob 4s ease-in-out infinite, ormuz-drift 12s linear infinite;
+  animation: ormuz-bob 4s ease-in-out infinite, ormuz-drift 18s linear infinite;
 }
 .strait-ship--b {
-  animation: ormuz-bob 4s ease-in-out 0.4s infinite, ormuz-drift 12s linear -4s infinite;
+  animation: ormuz-bob 4s ease-in-out 0.4s infinite, ormuz-drift 18s linear -6s infinite;
 }
 .strait-ship--c {
-  animation: ormuz-bob 4s ease-in-out 0.8s infinite, ormuz-drift 12s linear -8s infinite;
+  animation: ormuz-bob 4s ease-in-out 0.8s infinite, ormuz-drift 18s linear -12s infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .strait-ship--a, .strait-ship--b, .strait-ship--c { animation: none; }
