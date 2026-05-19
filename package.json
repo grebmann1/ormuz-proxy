@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Rate-limited LLM gateway proxy with adaptive queueing",
+  "description": "Client-side LLM forward proxy with adaptive rate limiting and queueing",
   "engines": {
     "node": ">=20"
   },

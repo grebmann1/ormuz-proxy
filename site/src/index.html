@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#fbfaf6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0a141c" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Ormuz — calm traffic through a narrow strait">
-<meta property="og:description" content="A proxy for your LLM gateway. Token-bucket pacing, bounded FIFO queues, and graceful 429 retries.">
+<meta property="og:description" content="A client-side LLM forward proxy. Token-bucket pacing, bounded FIFO queues, and graceful 429 retries.">
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,7 +55,7 @@ html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-famil
   <section class="hero container" aria-labelledby="hero-title">
     <div class="hero__grid">
       <div class="hero__copy">
-        <p class="hero__eyebrow">A proxy for your LLM gateway</p>
+        <p class="hero__eyebrow">A client-side LLM forward proxy</p>
         <h1 class="hero__headline" id="hero-title">Calm traffic<br>through a narrow strait.</h1>
         <p class="hero__subhead">Ormuz (Hormuz in English) sits between your code and the LLM gateway. It paces requests with a token bucket, queues bursts in FIFO, and retries upstream 429s so your tools stop hitting the rate limit.</p>
         <div class="hero__ctas">
