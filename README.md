@@ -1,5 +1,7 @@
 # Ormuz
 
+**Website:** https://ormuz-llm-gateway-bf4561e613c6.herokuapp.com/ — landing + rendered docs.
+
 Ormuz is a lightweight Node.js/TypeScript proxy that sits in front of your LLM Gateway and smooths outbound traffic with:
 
 - token-bucket rate control
