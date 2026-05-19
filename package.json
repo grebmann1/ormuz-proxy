@@ -20,7 +20,8 @@
     "install:autostart": "bash scripts/install-autostart.sh",
     "uninstall:autostart": "bash scripts/uninstall-autostart.sh",
     "install:systemproxy": "bash scripts/install-systemproxy.sh",
-    "uninstall:systemproxy": "bash scripts/uninstall-systemproxy.sh"
+    "uninstall:systemproxy": "bash scripts/uninstall-systemproxy.sh",
+    "deploy:heroku": "bash scripts/deploy-heroku.sh"
   },
   "bin": {
     "ormuz": "dist/cli.js"
