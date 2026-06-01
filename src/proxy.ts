@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { FastifyReply } from "fastify";
 import { request } from "undici";
 
@@ -156,7 +158,11 @@ export function deriveBucketKey(
 
   const auth = headers.authorization ?? headers.Authorization;
   const authValue = Array.isArray(auth) ? auth[0] : auth;
-  return authValue ? `auth:${authValue}` : "auth:anonymous";
+  return authValue ? `auth:${hashAuth(authValue)}` : "auth:anonymous";
+}
+
+function hashAuth(value: string): string {
+  return createHash("sha256").update(value).digest("hex").slice(0, 8);
 }
 
 export { parseRetryAfter };

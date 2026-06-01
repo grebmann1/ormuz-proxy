@@ -7,8 +7,19 @@ describe("deriveBucketKey", () => {
     expect(deriveBucketKey("global", { authorization: "Bearer x" }, { model: "gpt-4o" }, "host.x")).toBe("global");
   });
 
-  it("uses the auth header in auth mode", () => {
-    expect(deriveBucketKey("auth", { authorization: "Bearer abc" }, undefined)).toBe("auth:Bearer abc");
+  it("hashes the auth header in auth mode so the raw token never leaks into logs/metrics", () => {
+    const key = deriveBucketKey("auth", { authorization: "Bearer sk-secret-abc" }, undefined);
+    expect(key).toMatch(/^auth:[0-9a-f]{8}$/);
+    expect(key).not.toContain("sk-secret-abc");
+    expect(key).not.toContain("Bearer");
+  });
+
+  it("derives a stable bucket key per token", () => {
+    const a = deriveBucketKey("auth", { authorization: "Bearer same" }, undefined);
+    const b = deriveBucketKey("auth", { authorization: "Bearer same" }, undefined);
+    const c = deriveBucketKey("auth", { authorization: "Bearer different" }, undefined);
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
   });
 
   it("falls back to anonymous when no auth header is present", () => {

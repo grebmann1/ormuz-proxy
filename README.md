@@ -126,7 +126,7 @@ npm test
 | `ORMUZ_PROVIDER_TARGETS_FILE` | Optional JSON/YAML file path for provider targets (overrides env map); default auto-load: `config/provider-targets.json` if present | empty |
 | `ORMUZ_RPM` | Gateway requests per minute limit | `60` |
 | `ORMUZ_SAFETY_FACTOR` | Headroom multiplier for RPM | `0.95` |
-| `ORMUZ_BUCKET_KEY` | Bucket strategy: `auth`, `global`, `model`, `host` | `auth` |
+| `ORMUZ_BUCKET_KEY` | Bucket strategy: `auth`, `global`, `model`, `host`. In `auth` mode the bucket key is a hashed prefix of the `Authorization` header so raw tokens never appear in `/metrics`, logs, or hooks. | `auth` |
 | `ORMUZ_MAX_QUEUE_DEPTH` | Max queued requests per bucket | `200` |
 | `ORMUZ_MAX_QUEUE_WAIT_MS` | Max projected wait before local reject | `60000` |
 | `ORMUZ_MAX_RETRY_AFTER_MS` | Cap how long the bucket pauses on upstream `429 Retry-After` (unset = honor upstream value verbatim) | empty |
