@@ -426,6 +426,17 @@ export async function startServer(config = loadConfig(), hooks: OrmuzHooks = {})
   const app = buildApp(config, hooks);
   await app.listen({ port: config.port, host: "0.0.0.0" });
 
+  const noRouting =
+    !config.upstreamBaseUrl &&
+    Object.keys(config.providerTargets).length === 0 &&
+    Object.keys(config.routingRules.pathPrefixes).length === 0 &&
+    config.routingRules.headers.length === 0;
+  if (noRouting) {
+    app.log.warn(
+      "No provider targets, path-prefix routes, header rules, or fallback ORMUZ_UPSTREAM_BASE_URL configured. Every /v1/* request will return 500 until you set ORMUZ_PROVIDER_TARGETS, ORMUZ_PROVIDER_TARGETS_FILE, or create config/provider-targets.json."
+    );
+  }
+
   const shutdown = async () => {
     await app.close();
     process.exit(0);
