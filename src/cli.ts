@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
 import { stdin, stderr, stdout } from "node:process";
 import { existsSync } from "node:fs";

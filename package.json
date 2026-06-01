@@ -16,6 +16,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "prebuild": "npm run clean",
     "build": "tsc -p tsconfig.build.json",
+    "postbuild": "node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
