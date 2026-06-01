@@ -239,7 +239,7 @@ npm run load:test -- \
   --output=load-summary.json
 ```
 
-The `--auth-token` value is forwarded verbatim to the upstream as `Authorization: Bearer …`, so it must be a credential the upstream in `config/provider-targets.json` accepts (not an OpenAI key when the upstream is your upstream gateway).
+The `--auth-token` value is forwarded verbatim to the upstream as `Authorization: Bearer …`, so it must be a credential the upstream in `config/provider-targets.json` accepts (not an OpenAI key when the upstream is your own gateway).
 
 ### Load test flags
 
