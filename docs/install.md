@@ -21,8 +21,8 @@ For background on what Ormuz actually does with the traffic once it arrives, see
 
 `scripts/install-autostart.sh` does three things:
 
-1. Runs `npm run build` and verifies that `dist/src/cli.js` exists.
-2. Renders `scripts/com.ormuz.proxy.plist.template` to `~/Library/LaunchAgents/com.ormuz.proxy.plist`, then `launchctl bootstrap`s it. The plist runs `node dist/src/cli.js --yes --rpm 30 --max-retry-after-ms 5000` with `KeepAlive=true` and `RunAtLoad=true`, so Ormuz comes back automatically on crash and at next login.
+1. Runs `npm run build` and verifies that `dist/cli.js` exists.
+2. Renders `scripts/com.ormuz.proxy.plist.template` to `~/Library/LaunchAgents/com.ormuz.proxy.plist`, then `launchctl bootstrap`s it. The plist runs `node dist/cli.js --yes --rpm 30 --max-retry-after-ms 5000` with `KeepAlive=true` and `RunAtLoad=true`, so Ormuz comes back automatically on crash and at next login.
 3. Appends a sentinel-bracketed block to `~/.zshrc` exporting three SDK base URLs to `http://127.0.0.1:8787/v1/{openai,anthropic,gemini}`. The block is idempotent — re-running the script does not duplicate it.
 
 ### Run it
@@ -79,7 +79,7 @@ If Ormuz fails to start, the failure almost always lands in `ormuz.err.log` (Nod
 - **launchd can't find Node (Volta/nvm/asdf).** The `command -v node` lookup at install time may resolve to a shim that doesn't work under launchd's stripped PATH. Symptom: agent loads but `lsof -i :8787` is empty and `ormuz.err.log` shows `node: command not found` or a missing-binary error. Fix: re-run with `NODE_BIN=$(volta which node)` or the absolute path your version manager uses.
 - **Port 8787 already taken.** Symptom: `ormuz.err.log` shows `EADDRINUSE`. Find the offender with `lsof -i :8787`. Either stop it, or change the port (you'll need to edit the plist `--port` flag and re-bootstrap, plus update the `*_BASE_URL` env vars in `~/.zshrc` and the PAC if you also installed Option C).
 - **Build fails.** Install aborts before touching launchd or `~/.zshrc`. Run `npm run build` directly to see the TypeScript output.
-- **`dist/src/cli.js` missing after build.** The script aborts with that exact message (`scripts/install-autostart.sh:35-38`). Almost always means `tsconfig.json` was changed and emit moved; fix the build before retrying.
+- **`dist/cli.js` missing after build.** The script aborts with that exact message (`scripts/install-autostart.sh:35-38`). Almost always means `tsconfig.build.json` was changed and emit moved; fix the build before retrying.
 - **New shell still doesn't see env vars.** The block lives in `~/.zshrc`, so non-zsh shells, terminal multiplexers that don't re-read rc, and IDE-spawned shells may miss it. Either `source ~/.zshrc` in the running shell or add the three exports to whatever your shell actually reads.
 
 ### Uninstall
