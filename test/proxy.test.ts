@@ -1,29 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Agent, MockAgent, setGlobalDispatcher } from "undici";
 
-import { type AppConfig } from "../src/config.js";
 import { buildApp } from "../src/server.js";
+import { makeConfig } from "./helpers/config.js";
 
-const baseConfig: AppConfig = {
-  port: 8787,
-  host: "127.0.0.1",
-  upstreamBaseUrl: "https://your-llm-gateway.example.com",
-  providerTargets: {},
-  routingRules: {
-    pathPrefixes: {},
-    headers: []
-  },
-  rpm: 60,
-  effectiveRpm: 60,
-  refillPerSec: 1,
-  bucketKeyMode: "global",
-  maxQueueDepth: 200,
-  maxQueueWaitMs: 60_000,
-  upstreamToken: undefined,
-  safetyFactor: 1,
-  logLevel: "error"
-};
-const fallbackUpstream = baseConfig.upstreamBaseUrl ?? "https://your-llm-gateway.example.com";
+const fallbackUpstream = "https://your-llm-gateway.example.com";
+const baseConfig = makeConfig({ port: 8787, upstreamBaseUrl: fallbackUpstream });
 
 describe("Ormuz proxy integration", () => {
   let mockAgent: MockAgent;
