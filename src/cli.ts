@@ -23,11 +23,38 @@ type CliArgs = {
   yes: boolean;
 };
 
-function parseArgs(argv: string[]): CliArgs {
+const HELP_TEXT = `Ormuz — client-side LLM forward proxy
+
+Usage:
+  ormuz [options]
+
+Options:
+  --port <n>                    HTTP port (default 8787)
+  --rpm <n>                     Upstream requests-per-minute target
+  --safety-factor <0..1>        Headroom multiplier on RPM (default 0.95)
+  --upstream-url <url>          Fallback upstream when no provider matches
+  --provider-targets <json>     Inline provider/route JSON
+  --provider-targets-file <p>   Path to providers JSON/YAML (default: config/provider-targets.json if present)
+  --bucket-key <auth|global|model|host>  Rate-limit bucketing strategy
+  --max-queue-depth <n>         Per-bucket queue cap (default 200)
+  --max-queue-wait-ms <ms>      Reject if projected wait exceeds this (default 60000)
+  --max-retry-after-ms <ms>     Cap upstream Retry-After pauses
+  --log-level <level>           fatal|error|warn|info|debug|trace (default info)
+  --live                        Render a live monitor in stdout
+  --yes                         Skip interactive prompts
+  -h, --help                    Show this help
+
+Environment variables (ORMUZ_*) override defaults; CLI flags override env.
+Docs: https://github.com/grebmann/ormuz`;
+
+function parseArgs(argv: string[]): CliArgs | "help" {
   const args: CliArgs = { yes: false, live: false };
   for (let i = 0; i < argv.length; i += 1) {
     const current = argv[i];
     const next = argv[i + 1];
+    if (current === "-h" || current === "--help") {
+      return "help";
+    }
     switch (current) {
       case "--port":
         args.port = next;
@@ -108,7 +135,12 @@ async function promptForMissing(args: CliArgs): Promise<CliArgs> {
 }
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
-  const parsed = await promptForMissing(parseArgs(argv));
+  const parsedOrHelp = parseArgs(argv);
+  if (parsedOrHelp === "help") {
+    stdout.write(`${HELP_TEXT}\n`);
+    return;
+  }
+  const parsed = await promptForMissing(parsedOrHelp);
 
   const envOverrides: NodeJS.ProcessEnv = {
     ...process.env

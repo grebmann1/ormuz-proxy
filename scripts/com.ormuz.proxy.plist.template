@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>{{NODE_BIN}}</string>
-        <string>{{REPO}}/dist/src/cli.js</string>
+        <string>{{REPO}}/dist/cli.js</string>
         <string>--yes</string>
         <string>--rpm</string>
         <string>30</string>

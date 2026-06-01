@@ -19,27 +19,14 @@ For a full internal walkthrough, see [docs/how-it-works.md](docs/how-it-works.md
 
 ## Quickstart
 
-### 1) Install dependencies
-
 ```bash
 npm install
+npm run setup     # creates .env from .env.example if missing
+npm run dev       # starts Ormuz on http://localhost:8787
 ```
 
-### 2) Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Ormuz auto-loads default provider routing from `config/provider-targets.json`.
-
-### 3) Start Ormuz
-
-```bash
-npm run dev
-```
-
-Ormuz starts on `http://localhost:8787` by default.
+Provider routing is auto-loaded from `config/provider-targets.json`. Override
+defaults via `.env` (see `.env.example`) or CLI flags.
 
 ### CLI examples
 

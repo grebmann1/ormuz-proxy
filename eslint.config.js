@@ -31,6 +31,7 @@ export default [
         process: "readonly",
         console: "readonly",
         fetch: "readonly",
+        URL: "readonly",
         AbortController: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",

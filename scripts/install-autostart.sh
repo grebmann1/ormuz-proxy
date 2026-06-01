@@ -32,8 +32,8 @@ echo "==> node: $NODE_BIN"
 echo "==> building (npm run build)"
 (cd "$REPO_DIR" && npm run build >/dev/null)
 
-if [[ ! -f "$REPO_DIR/dist/src/cli.js" ]]; then
-    echo "install-autostart: build did not produce dist/src/cli.js. Aborting." >&2
+if [[ ! -f "$REPO_DIR/dist/cli.js" ]]; then
+    echo "install-autostart: build did not produce dist/cli.js. Aborting." >&2
     exit 1
 fi
 

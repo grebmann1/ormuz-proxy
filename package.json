@@ -3,15 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "description": "Client-side LLM forward proxy with adaptive rate limiting and queueing",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "tsx watch src/cli.ts",
     "dev:cli": "tsx src/cli.ts",
     "load:test": "node scripts/load-test-ormuz.mjs",
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prebuild": "npm run clean",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
