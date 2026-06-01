@@ -42,6 +42,21 @@ describe("Ormuz proxy integration", () => {
     setGlobalDispatcher(new Agent());
   });
 
+  it("exposes effective config at /config without leaking secrets", async () => {
+    app = buildApp({
+      ...baseConfig,
+      upstreamToken: "shhh",
+      providerTargets: { openai: "https://api.openai.com" }
+    });
+    const response = await app.inject({ method: "GET", url: "/config" });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as Record<string, unknown>;
+    expect(body.upstreamTokenSet).toBe(true);
+    expect(body).not.toHaveProperty("upstreamToken");
+    expect(body.providers).toEqual({ openai: "https://api.openai.com" });
+    expect(body.effectiveRpm).toBe(60);
+  });
+
   it("passes through under-rate traffic", async () => {
     const pool = mockAgent.get(fallbackUpstream);
     pool.intercept({ path: "/v1/chat/completions", method: "POST" }).reply(200, { ok: true });

@@ -159,6 +159,25 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
 
   app.get("/health", async () => ({ ok: true }));
 
+  app.get("/config", async () => ({
+    port: config.port,
+    rpm: config.rpm,
+    safetyFactor: config.safetyFactor,
+    effectiveRpm: config.effectiveRpm,
+    bucketKeyMode: config.bucketKeyMode,
+    maxQueueDepth: config.maxQueueDepth,
+    maxQueueWaitMs: config.maxQueueWaitMs,
+    maxRetryAfterMs: config.maxRetryAfterMs ?? null,
+    logLevel: config.logLevel,
+    upstreamBaseUrl: config.upstreamBaseUrl ?? null,
+    upstreamTokenSet: Boolean(config.upstreamToken),
+    providers: config.providerTargets,
+    routes: {
+      pathPrefixes: config.routingRules.pathPrefixes,
+      headerRules: config.routingRules.headers.map((rule) => `${rule.header}=${rule.value}`)
+    }
+  }));
+
   app.get("/metrics", async (_request, reply) => {
     reply.header("Content-Type", metrics.contentType());
     return metrics.snapshot();

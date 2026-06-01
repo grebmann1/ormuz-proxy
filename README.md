@@ -123,6 +123,7 @@ npm test
 
 - Proxy endpoint: `POST/GET/etc /v1/*`
 - Health endpoint: `GET /health`
+- Effective config (debug): `GET /config`
 - Metrics endpoint: `GET /metrics`
 
 ## Provider URL format
