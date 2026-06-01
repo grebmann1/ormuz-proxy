@@ -25,8 +25,9 @@ if (existsSync(providersPath)) {
   console.log("! config/provider-targets.json missing — set ORMUZ_PROVIDER_TARGETS or create the file");
 }
 
+const port = process.env.ORMUZ_PORT ?? "8787";
 console.log("");
 console.log("Next:");
-console.log("  npm run dev           # start Ormuz on http://localhost:8787");
+console.log(`  npm run dev           # start Ormuz on http://localhost:${port}`);
 console.log("  npm test              # run unit + integration tests");
 console.log("  npm run install:autostart   # macOS: launchd + zshrc env vars");

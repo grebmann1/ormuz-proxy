@@ -55,6 +55,19 @@ describe("Ormuz proxy integration", () => {
     expect(body.uptimeSec).toBeGreaterThanOrEqual(0);
   });
 
+  it("exposes Prometheus metrics at /metrics", async () => {
+    app = buildApp(baseConfig);
+    const response = await app.inject({ method: "GET", url: "/metrics" });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toMatch(/text\/plain/);
+    const body = response.body;
+    expect(body).toContain("ormuz_queue_depth");
+    expect(body).toContain("ormuz_tokens_available");
+    expect(body).toContain("ormuz_requests_total");
+    expect(body).toContain("# HELP ");
+    expect(body).toContain("# TYPE ");
+  });
+
   it("exposes effective config at /config without leaking secrets", async () => {
     app = buildApp({
       ...baseConfig,
