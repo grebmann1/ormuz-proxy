@@ -212,7 +212,7 @@ These are the env vars worth thinking about when installing system-wide. The ful
 
 | Variable | Why it matters at install time |
 | --- | --- |
-| `ORMUZ_PORT` | Default `8787`. Must match the port baked into the LaunchAgent and the PAC. Change in three places (plist arg, `~/.zshrc` exports, regenerate PAC) or pick a free port up front. |
+| `ORMUZ_PORT` | Default `8787`. The autostart installer reads this from your environment (`ORMUZ_PORT=9090 npm run install:autostart`) and writes it into the plist, the `~/.zshrc` exports, and the health-check probe in one shot. The PAC is generated separately — re-run `npm run install:systemproxy` with the same `ORMUZ_PORT` if you also use Option C. |
 | `ORMUZ_RPM` | Default `60`; the LaunchAgent overrides to `30` (`scripts/com.ormuz.proxy.plist.template:13-14`). Set this to your gateway's actual sustained limit, then back off another 5-10% for safety. |
 | `ORMUZ_SAFETY_FACTOR` | Default `0.95`. Drop to ~`0.8` if you observe frequent upstream `429`s; raise toward `1.0` if you have headroom. |
 | `ORMUZ_BUCKET_KEY` | Default `auth`. Use `host` when running A + C together so HTTP and CONNECT to the same upstream share a budget. |

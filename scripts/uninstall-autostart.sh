@@ -14,6 +14,7 @@ PLIST_PATH="$HOME/Library/LaunchAgents/${PLIST_LABEL}.plist"
 ZSHRC="$HOME/.zshrc"
 ZSHRC_BEGIN="# >>> ormuz autostart >>>"
 ZSHRC_END="# <<< ormuz autostart <<<"
+PORT="${ORMUZ_PORT:-8787}"
 
 UID_VAL="$(id -u)"
 
@@ -44,5 +45,5 @@ If a script has cached env vars, unset them manually:
 
 Verify the agent is gone:
   launchctl list | grep ormuz   # should print nothing
-  lsof -i :8787                  # should print nothing
+  lsof -i :$PORT                 # should print nothing
 EOF

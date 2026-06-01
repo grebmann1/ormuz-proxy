@@ -19,6 +19,7 @@ TEMPLATE="$REPO_DIR/scripts/com.ormuz.proxy.plist.template"
 ZSHRC="$HOME/.zshrc"
 ZSHRC_BEGIN="# >>> ormuz autostart >>>"
 ZSHRC_END="# <<< ormuz autostart <<<"
+PORT="${ORMUZ_PORT:-8787}"
 
 NODE_BIN="${NODE_BIN:-$(command -v node)}"
 if [[ -z "$NODE_BIN" ]]; then
@@ -28,6 +29,7 @@ fi
 
 echo "==> repo: $REPO_DIR"
 echo "==> node: $NODE_BIN"
+echo "==> port: $PORT"
 
 echo "==> building (npm run build)"
 (cd "$REPO_DIR" && npm run build >/dev/null)
@@ -44,6 +46,7 @@ sed \
     -e "s|{{NODE_BIN}}|$NODE_BIN|g" \
     -e "s|{{REPO}}|$REPO_DIR|g" \
     -e "s|{{HOME}}|$HOME|g" \
+    -e "s|{{PORT}}|$PORT|g" \
     "$TEMPLATE" >"$PLIST_PATH"
 
 # Reload the agent: bootout (ignore errors if not loaded), then bootstrap.
@@ -53,14 +56,14 @@ launchctl bootstrap "gui/$UID_VAL" "$PLIST_PATH"
 
 # Wait briefly for the listener.
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if curl -sS -o /dev/null -m 1 http://127.0.0.1:8787/health 2>/dev/null; then
+    if curl -sS -o /dev/null -m 1 "http://127.0.0.1:$PORT/health" 2>/dev/null; then
         break
     fi
     sleep 1
 done
 
-if curl -sS -o /dev/null -w "%{http_code}" -m 2 http://127.0.0.1:8787/health 2>/dev/null | grep -q 200; then
-    echo "==> Ormuz is listening on http://127.0.0.1:8787"
+if curl -sS -o /dev/null -w "%{http_code}" -m 2 "http://127.0.0.1:$PORT/health" 2>/dev/null | grep -q 200; then
+    echo "==> Ormuz is listening on http://127.0.0.1:$PORT"
 else
     echo "==> WARNING: Ormuz not responding yet. Check ~/Library/Logs/ormuz.err.log" >&2
 fi
@@ -73,9 +76,9 @@ else
     {
         printf '\n%s\n' "$ZSHRC_BEGIN"
         printf '# Managed by scripts/install-autostart.sh. Remove with uninstall-autostart.sh.\n'
-        printf 'export OPENAI_BASE_URL=http://127.0.0.1:8787/v1/openai\n'
-        printf 'export ANTHROPIC_BASE_URL=http://127.0.0.1:8787/v1/anthropic\n'
-        printf 'export GEMINI_BASE_URL=http://127.0.0.1:8787/v1/gemini\n'
+        printf 'export OPENAI_BASE_URL=http://127.0.0.1:%s/v1/openai\n' "$PORT"
+        printf 'export ANTHROPIC_BASE_URL=http://127.0.0.1:%s/v1/anthropic\n' "$PORT"
+        printf 'export GEMINI_BASE_URL=http://127.0.0.1:%s/v1/gemini\n' "$PORT"
         printf '%s\n' "$ZSHRC_END"
     } >>"$ZSHRC"
 fi
@@ -85,7 +88,7 @@ cat <<EOF
 Done. Open a new terminal (or 'source ~/.zshrc') for the env vars to apply.
 
 Verify:
-  curl -sS http://127.0.0.1:8787/health
+  curl -sS http://127.0.0.1:$PORT/health
   echo \$ANTHROPIC_BASE_URL
 
 Logs:
