@@ -1,5 +1,8 @@
 # Ormuz
 
+[![CI](https://github.com/grebmann1/ormuz-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/grebmann1/ormuz-proxy/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Website:** https://ormuz-llm-gateway-bf4561e613c6.herokuapp.com/ — landing + rendered docs.
 
 Ormuz is a **client-side LLM forward proxy**. It sits between your application code and the upstream LLM gateway, smoothing outbound traffic with:
