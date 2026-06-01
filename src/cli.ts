@@ -47,7 +47,7 @@ Options:
   -h, --help                    Show this help
 
 Environment variables (ORMUZ_*) override defaults; CLI flags override env.
-Docs: https://github.com/grebmann/ormuz`;
+Docs: https://github.com/grebmann1/ormuz-proxy`;
 
 function parseArgs(argv: string[]): CliArgs | "help" {
   const args: CliArgs = { yes: false, live: false };
@@ -225,7 +225,7 @@ function createLiveMonitorHooks(port: number): OrmuzHooks {
       `endpoints: ${formatTop(endpointCounts)}`,
       "Press Ctrl+C to stop."
     ];
-    stdout.write("\x1Bc");
+    stdout.write("\x1B[2J\x1B[H");
     stdout.write(`${lines.join("\n")}\n`);
   };
 
