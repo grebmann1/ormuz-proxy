@@ -7,6 +7,7 @@ import { buildApp } from "../src/server.js";
 
 const baseConfig: AppConfig = {
   port: 0,
+  host: "127.0.0.1",
   upstreamBaseUrl: undefined,
   providerTargets: {},
   routingRules: { pathPrefixes: {}, headers: [] },

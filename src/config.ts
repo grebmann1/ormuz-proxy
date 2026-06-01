@@ -21,6 +21,7 @@ export const DEFAULT_PROVIDER_TARGETS_FILE = "config/provider-targets.json";
 
 const schema = z.object({
   ORMUZ_PORT: z.coerce.number().int().min(1).max(65535).default(8787),
+  ORMUZ_HOST: z.string().min(1).default("127.0.0.1"),
   ORMUZ_UPSTREAM_BASE_URL: z.string().url().optional(),
   ORMUZ_UPSTREAM_TOKEN: z.string().optional(),
   ORMUZ_PROVIDER_TARGETS: z.string().optional(),
@@ -37,6 +38,7 @@ const schema = z.object({
 export type BucketKeyMode = z.infer<typeof bucketKeySchema>;
 export type AppConfig = {
   port: number;
+  host: string;
   upstreamBaseUrl?: string;
   upstreamToken?: string;
   providerTargets: Record<string, string>;
@@ -168,6 +170,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   return {
     port: parsed.ORMUZ_PORT,
+    host: parsed.ORMUZ_HOST,
     upstreamBaseUrl: parsed.ORMUZ_UPSTREAM_BASE_URL?.replace(/\/+$/, ""),
     upstreamToken: upstreamToken && upstreamToken.length > 0 ? upstreamToken : undefined,
     providerTargets: providerConfig.providerTargets,

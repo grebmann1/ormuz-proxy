@@ -6,6 +6,7 @@ import { buildApp } from "../src/server.js";
 
 const baseConfig: AppConfig = {
   port: 8787,
+  host: "127.0.0.1",
   upstreamBaseUrl: "https://your-llm-gateway.example.com",
   providerTargets: {},
   routingRules: {

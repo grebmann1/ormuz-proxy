@@ -111,6 +111,7 @@ npm test
 | Variable | Description | Default |
 | --- | --- | --- |
 | `ORMUZ_PORT` | HTTP port for Ormuz | `8787` |
+| `ORMUZ_HOST` | Bind address. Defaults to loopback so the proxy is not exposed on the network — set `0.0.0.0` only when you intentionally want to share the proxy with other machines | `127.0.0.1` |
 | `ORMUZ_UPSTREAM_BASE_URL` | Optional fallback base URL if no provider map | empty |
 | `ORMUZ_PROVIDER_TARGETS` | JSON object map of provider -> upstream base URL | empty |
 | `ORMUZ_PROVIDER_TARGETS_FILE` | Optional JSON/YAML file path for provider targets (overrides env map); default auto-load: `config/provider-targets.json` if present | empty |

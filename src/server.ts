@@ -182,6 +182,7 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
 
   app.get("/config", async () => ({
     port: config.port,
+    host: config.host,
     rpm: config.rpm,
     safetyFactor: config.safetyFactor,
     effectiveRpm: config.effectiveRpm,
@@ -424,7 +425,7 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
 
 export async function startServer(config = loadConfig(), hooks: OrmuzHooks = {}): Promise<FastifyInstance> {
   const app = buildApp(config, hooks);
-  await app.listen({ port: config.port, host: "0.0.0.0" });
+  await app.listen({ port: config.port, host: config.host });
 
   const noRouting =
     !config.upstreamBaseUrl &&

@@ -12,6 +12,7 @@ import { collectAllowedHosts, startServer } from "./server.js";
 
 type CliArgs = {
   port?: string;
+  host?: string;
   rpm?: string;
   upstreamUrl?: string;
   providerTargets?: string;
@@ -33,6 +34,7 @@ Usage:
 
 Options:
   --port <n>                    HTTP port (default 8787)
+  --host <addr>                 Bind address (default 127.0.0.1; use 0.0.0.0 to expose on the network)
   --rpm <n>                     Upstream requests-per-minute target
   --safety-factor <0..1>        Headroom multiplier on RPM (default 0.95)
   --upstream-url <url>          Fallback upstream when no provider matches
@@ -69,6 +71,10 @@ function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts"
     switch (current) {
       case "--port":
         args.port = next;
+        i += 1;
+        break;
+      case "--host":
+        args.host = next;
         i += 1;
         break;
       case "--rpm":
@@ -198,6 +204,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     ...process.env
   };
   if (parsed.port) envOverrides.ORMUZ_PORT = parsed.port;
+  if (parsed.host) envOverrides.ORMUZ_HOST = parsed.host;
   if (parsed.rpm) envOverrides.ORMUZ_RPM = parsed.rpm;
   if (parsed.upstreamUrl) envOverrides.ORMUZ_UPSTREAM_BASE_URL = parsed.upstreamUrl;
   if (parsed.providerTargets) envOverrides.ORMUZ_PROVIDER_TARGETS = parsed.providerTargets;
