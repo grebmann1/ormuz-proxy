@@ -6,7 +6,7 @@
   "license": "MIT",
   "description": "Client-side LLM forward proxy with adaptive rate limiting and queueing",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.12"
   },
   "scripts": {
     "setup": "node scripts/setup.mjs",

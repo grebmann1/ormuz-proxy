@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
-import { stdin, stderr, stdout } from "node:process";
+import { stdin, stderr, stdout, loadEnvFile } from "node:process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -141,6 +141,18 @@ async function promptForMissing(args: CliArgs): Promise<CliArgs> {
   return args;
 }
 
+function loadDotEnvIfPresent(): void {
+  const envPath = resolve(process.cwd(), ".env");
+  if (!existsSync(envPath)) {
+    return;
+  }
+  try {
+    loadEnvFile(envPath);
+  } catch (error) {
+    stderr.write(`warning: failed to load .env: ${(error as Error).message}\n`);
+  }
+}
+
 function readPackageVersion(): string {
   try {
     const pkgPath = resolve(new URL("../package.json", import.meta.url).pathname);
@@ -162,6 +174,8 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
   const parsed = await promptForMissing(parsed1);
+
+  loadDotEnvIfPresent();
 
   const envOverrides: NodeJS.ProcessEnv = {
     ...process.env
