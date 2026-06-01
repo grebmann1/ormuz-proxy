@@ -1,5 +1,6 @@
 import { connect as netConnect, type Socket } from "node:net";
 import type { IncomingMessage } from "node:http";
+import { readFileSync } from "node:fs";
 
 import Fastify, { type FastifyInstance } from "fastify";
 
@@ -10,6 +11,21 @@ import { resolveConfiguredRoute, resolveProviderRoute } from "./providerRouter.j
 import { deriveBucketKey, forwardRequest } from "./proxy.js";
 import { RequestScheduler, type SchedulerHooks } from "./scheduler.js";
 import { QueueRejectedError } from "./types.js";
+
+let cachedVersion: string | undefined;
+function readVersion(): string {
+  if (cachedVersion !== undefined) {
+    return cachedVersion;
+  }
+  try {
+    const pkgPath = new URL("../package.json", import.meta.url).pathname;
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version?: string };
+    cachedVersion = pkg.version ?? "0.0.0";
+  } catch {
+    cachedVersion = "0.0.0";
+  }
+  return cachedVersion;
+}
 
 function safeHostname(url: string): string | undefined {
   try {
@@ -157,7 +173,12 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     }
   });
 
-  app.get("/health", async () => ({ ok: true }));
+  const startedAtMs = Date.now();
+  app.get("/health", async () => ({
+    ok: true,
+    version: readVersion(),
+    uptimeSec: Math.floor((Date.now() - startedAtMs) / 1000)
+  }));
 
   app.get("/config", async () => ({
     port: config.port,

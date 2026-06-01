@@ -42,6 +42,18 @@ describe("Ormuz proxy integration", () => {
     setGlobalDispatcher(new Agent());
   });
 
+  it("reports version and uptime at /health", async () => {
+    app = buildApp(baseConfig);
+    const response = await app.inject({ method: "GET", url: "/health" });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as Record<string, unknown>;
+    expect(body.ok).toBe(true);
+    expect(typeof body.version).toBe("string");
+    expect(body.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(typeof body.uptimeSec).toBe("number");
+    expect(body.uptimeSec).toBeGreaterThanOrEqual(0);
+  });
+
   it("exposes effective config at /config without leaking secrets", async () => {
     app = buildApp({
       ...baseConfig,

@@ -125,7 +125,7 @@ npm test
 ## Routing
 
 - Proxy endpoint: `POST/GET/etc /v1/*`
-- Health endpoint: `GET /health`
+- Health endpoint: `GET /health` — returns `{ ok, version, uptimeSec }`
 - Effective config (debug): `GET /config`
 - Metrics endpoint: `GET /metrics`
 
