@@ -8,7 +8,7 @@ import { ZodError } from "zod";
 
 import { DEFAULT_PROVIDER_TARGETS_FILE, loadConfig } from "./config.js";
 import { createLiveMonitorHooks } from "./liveMonitor.js";
-import { collectAllowedHosts, startServer } from "./server.js";
+import { collectAllowedHosts, startServer, summarizeConfig } from "./server.js";
 
 type CliArgs = {
   port?: string;
@@ -48,13 +48,14 @@ Options:
   --live                        Render a live monitor in stdout
   --yes                         Skip interactive prompts
   --print-hosts                 Print one allowed upstream host per line and exit
+  --print-config                Print the resolved config as JSON and exit (no server start)
   -v, --version                 Print version and exit
   -h, --help                    Show this help
 
 Environment variables (ORMUZ_*) override defaults; CLI flags override env.
 Docs: https://github.com/grebmann1/ormuz-proxy`;
 
-function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts" {
+function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts" | "print-config" {
   const args: CliArgs = { yes: false, live: false };
   for (let i = 0; i < argv.length; i += 1) {
     const current = argv[i];
@@ -67,6 +68,9 @@ function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts"
     }
     if (current === "--print-hosts") {
       return "print-hosts";
+    }
+    if (current === "--print-config") {
+      return "print-config";
     }
     switch (current) {
       case "--port":
@@ -190,6 +194,17 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
       const config = loadConfig();
       const hosts = [...collectAllowedHosts(config)].sort();
       stdout.write(`${hosts.join("\n")}\n`);
+    } catch (error) {
+      printConfigError(error);
+      process.exit(1);
+    }
+    return;
+  }
+  if (parsed1 === "print-config") {
+    loadDotEnvIfPresent();
+    try {
+      const config = loadConfig();
+      stdout.write(`${JSON.stringify(summarizeConfig(config), null, 2)}\n`);
     } catch (error) {
       printConfigError(error);
       process.exit(1);

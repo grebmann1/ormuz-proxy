@@ -98,6 +98,15 @@ npm run uninstall:systemproxy
 - Cert-pinned apps and apps that ignore the system proxy still bypass Ormuz.
 - Because Ormuz only sees `CONNECT host:port` (not the URL or body), tunnel-mode rate limiting is per-host only — model/path-level routing requires direct `/v1/<provider>/...` access.
 
+## Inspect config without starting the server
+
+```bash
+npx ormuz --print-config    # JSON dump of the resolved config (.env + flags)
+npx ormuz --print-hosts     # one allowed CONNECT host per line
+```
+
+Use these to confirm `.env`, `config/provider-targets.json`, and CLI flags merged the way you expected.
+
 ## Run checks
 
 ```bash

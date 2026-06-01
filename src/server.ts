@@ -47,6 +47,28 @@ function parseBodyForBucket(body: Buffer, contentType: string | undefined): unkn
   }
 }
 
+export function summarizeConfig(config: AppConfig): Record<string, unknown> {
+  return {
+    port: config.port,
+    host: config.host,
+    rpm: config.rpm,
+    safetyFactor: config.safetyFactor,
+    effectiveRpm: config.effectiveRpm,
+    bucketKeyMode: config.bucketKeyMode,
+    maxQueueDepth: config.maxQueueDepth,
+    maxQueueWaitMs: config.maxQueueWaitMs,
+    maxRetryAfterMs: config.maxRetryAfterMs ?? null,
+    logLevel: config.logLevel,
+    upstreamBaseUrl: config.upstreamBaseUrl ?? null,
+    upstreamTokenSet: Boolean(config.upstreamToken),
+    providers: config.providerTargets,
+    routes: {
+      pathPrefixes: config.routingRules.pathPrefixes,
+      headerRules: config.routingRules.headers.map((rule) => `${rule.header}=${rule.value}`)
+    }
+  };
+}
+
 export function collectAllowedHosts(config: AppConfig): Set<string> {
   const hosts = new Set<string>();
   const addUrl = (url: string | undefined): void => {
@@ -180,25 +202,7 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     uptimeSec: Math.floor((Date.now() - startedAtMs) / 1000)
   }));
 
-  app.get("/config", async () => ({
-    port: config.port,
-    host: config.host,
-    rpm: config.rpm,
-    safetyFactor: config.safetyFactor,
-    effectiveRpm: config.effectiveRpm,
-    bucketKeyMode: config.bucketKeyMode,
-    maxQueueDepth: config.maxQueueDepth,
-    maxQueueWaitMs: config.maxQueueWaitMs,
-    maxRetryAfterMs: config.maxRetryAfterMs ?? null,
-    logLevel: config.logLevel,
-    upstreamBaseUrl: config.upstreamBaseUrl ?? null,
-    upstreamTokenSet: Boolean(config.upstreamToken),
-    providers: config.providerTargets,
-    routes: {
-      pathPrefixes: config.routingRules.pathPrefixes,
-      headerRules: config.routingRules.headers.map((rule) => `${rule.header}=${rule.value}`)
-    }
-  }));
+  app.get("/config", async () => summarizeConfig(config));
 
   app.get("/metrics", async (_request, reply) => {
     reply.header("Content-Type", metrics.contentType());

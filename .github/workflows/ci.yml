@@ -19,9 +19,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
+      - run: npm run verify
       - run: npm run build
       - name: Smoke-test the built CLI (--help)
         run: node dist/cli.js --help | grep -q "Ormuz"
@@ -29,3 +27,5 @@ jobs:
         run: test "$(node dist/cli.js --version)" = "$(node -p "require('./package.json').version")"
       - name: Smoke-test the built CLI is directly executable
         run: ./dist/cli.js --help | grep -q "Ormuz"
+      - name: Smoke-test --print-config
+        run: ./dist/cli.js --print-config | node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"

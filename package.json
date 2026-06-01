@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify": "npm run lint && npm run typecheck && npm test",
     "install:autostart": "bash scripts/install-autostart.sh",
