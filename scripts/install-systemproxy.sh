@@ -15,31 +15,18 @@ PAC_TEMPLATE="$REPO_DIR/scripts/ormuz.pac.template"
 PAC_DIR="$HOME/.config/ormuz"
 PAC_PATH="$PAC_DIR/proxy.pac"
 PORT="${ORMUZ_PORT:-8787}"
-TARGETS_FILE="${ORMUZ_PROVIDER_TARGETS_FILE:-$REPO_DIR/config/provider-targets.json}"
 
-if [[ ! -f "$TARGETS_FILE" ]]; then
-    echo "install-systemproxy: provider targets file not found: $TARGETS_FILE" >&2
-    echo "Set ORMUZ_PROVIDER_TARGETS_FILE or create config/provider-targets.json first." >&2
-    exit 1
+if [[ ! -f "$REPO_DIR/dist/cli.js" ]]; then
+    echo "==> building (npm run build)"
+    (cd "$REPO_DIR" && npm run build >/dev/null)
 fi
 
-# Extract every hostname from the JSON config (providers, path-prefixes, header rules).
-HOSTS=$(node -e "
-const fs = require('fs');
-const cfg = JSON.parse(fs.readFileSync(process.argv[1], 'utf-8'));
-const urls = [];
-for (const v of Object.values(cfg.providers || {})) urls.push(v);
-for (const v of Object.values((cfg.routes || {}).pathPrefixes || {})) urls.push(v);
-for (const r of (cfg.routes || {}).headers || []) urls.push(r.target);
-const hosts = new Set();
-for (const u of urls) {
-  try { hosts.add(new URL(u).hostname.toLowerCase()); } catch {}
-}
-console.log([...hosts].sort().join('\n'));
-" "$TARGETS_FILE")
+# Ask the CLI for the canonical allowed-host set so we honor the same config
+# precedence (env, file, default) as the running proxy — no duplicate parsing.
+HOSTS=$(cd "$REPO_DIR" && node dist/cli.js --print-hosts)
 
 if [[ -z "$HOSTS" ]]; then
-    echo "install-systemproxy: no hostnames extracted from $TARGETS_FILE. Aborting." >&2
+    echo "install-systemproxy: no hostnames in resolved config. Set ORMUZ_PROVIDER_TARGETS_FILE or populate config/provider-targets.json." >&2
     exit 1
 fi
 

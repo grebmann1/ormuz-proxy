@@ -8,7 +8,7 @@ import { ZodError } from "zod";
 
 import { DEFAULT_PROVIDER_TARGETS_FILE, loadConfig } from "./config.js";
 import type { OrmuzHooks } from "./hooks.js";
-import { startServer } from "./server.js";
+import { collectAllowedHosts, startServer } from "./server.js";
 
 type CliArgs = {
   port?: string;
@@ -45,13 +45,14 @@ Options:
   --log-level <level>           fatal|error|warn|info|debug|trace (default info)
   --live                        Render a live monitor in stdout
   --yes                         Skip interactive prompts
+  --print-hosts                 Print one allowed upstream host per line and exit
   -v, --version                 Print version and exit
   -h, --help                    Show this help
 
 Environment variables (ORMUZ_*) override defaults; CLI flags override env.
 Docs: https://github.com/grebmann1/ormuz-proxy`;
 
-function parseArgs(argv: string[]): CliArgs | "help" | "version" {
+function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts" {
   const args: CliArgs = { yes: false, live: false };
   for (let i = 0; i < argv.length; i += 1) {
     const current = argv[i];
@@ -61,6 +62,9 @@ function parseArgs(argv: string[]): CliArgs | "help" | "version" {
     }
     if (current === "-v" || current === "--version") {
       return "version";
+    }
+    if (current === "--print-hosts") {
+      return "print-hosts";
     }
     switch (current) {
       case "--port":
@@ -173,6 +177,18 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     stdout.write(`${readPackageVersion()}\n`);
     return;
   }
+  if (parsed1 === "print-hosts") {
+    loadDotEnvIfPresent();
+    try {
+      const config = loadConfig();
+      const hosts = [...collectAllowedHosts(config)].sort();
+      stdout.write(`${hosts.join("\n")}\n`);
+    } catch (error) {
+      printConfigError(error);
+      process.exit(1);
+    }
+    return;
+  }
   const parsed = await promptForMissing(parsed1);
 
   loadDotEnvIfPresent();
@@ -196,19 +212,24 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   try {
     config = loadConfig(envOverrides);
   } catch (error) {
-    if (error instanceof ZodError) {
-      stderr.write("Ormuz config error:\n");
-      for (const issue of error.issues) {
-        const where = issue.path.join(".") || "(root)";
-        stderr.write(`  ${where}: ${issue.message}\n`);
-      }
-      stderr.write("\nRun with --help to see available flags, or check your ORMUZ_* env vars.\n");
-      process.exit(1);
-    }
-    throw error;
+    printConfigError(error);
+    process.exit(1);
   }
   const hooks = parsed.live ? createLiveMonitorHooks(config.port) : {};
   await startServer(config, hooks);
+}
+
+function printConfigError(error: unknown): void {
+  if (error instanceof ZodError) {
+    stderr.write("Ormuz config error:\n");
+    for (const issue of error.issues) {
+      const where = issue.path.join(".") || "(root)";
+      stderr.write(`  ${where}: ${issue.message}\n`);
+    }
+    stderr.write("\nRun with --help to see available flags, or check your ORMUZ_* env vars.\n");
+    return;
+  }
+  stderr.write(`Ormuz config error: ${(error as Error).message ?? String(error)}\n`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

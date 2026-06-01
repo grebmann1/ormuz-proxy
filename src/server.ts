@@ -47,7 +47,7 @@ function parseBodyForBucket(body: Buffer, contentType: string | undefined): unkn
   }
 }
 
-function collectAllowedHosts(config: AppConfig): Set<string> {
+export function collectAllowedHosts(config: AppConfig): Set<string> {
   const hosts = new Set<string>();
   const addUrl = (url: string | undefined): void => {
     if (!url) {
