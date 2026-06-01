@@ -1,7 +1,9 @@
 import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { stdin, stderr, stdout } from "node:process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+
+import { ZodError } from "zod";
 
 import { DEFAULT_PROVIDER_TARGETS_FILE, loadConfig } from "./config.js";
 import type { OrmuzHooks } from "./hooks.js";
@@ -157,7 +159,21 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   if (parsed.logLevel) envOverrides.ORMUZ_LOG_LEVEL = parsed.logLevel;
   if (parsed.safetyFactor) envOverrides.ORMUZ_SAFETY_FACTOR = parsed.safetyFactor;
 
-  const config = loadConfig(envOverrides);
+  let config;
+  try {
+    config = loadConfig(envOverrides);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      stderr.write("Ormuz config error:\n");
+      for (const issue of error.issues) {
+        const where = issue.path.join(".") || "(root)";
+        stderr.write(`  ${where}: ${issue.message}\n`);
+      }
+      stderr.write("\nRun with --help to see available flags, or check your ORMUZ_* env vars.\n");
+      process.exit(1);
+    }
+    throw error;
+  }
   const hooks = parsed.live ? createLiveMonitorHooks(config.port) : {};
   await startServer(config, hooks);
 }
