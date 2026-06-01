@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
 import { stdin, stderr, stdout } from "node:process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { ZodError } from "zod";
@@ -45,18 +45,22 @@ Options:
   --log-level <level>           fatal|error|warn|info|debug|trace (default info)
   --live                        Render a live monitor in stdout
   --yes                         Skip interactive prompts
+  -v, --version                 Print version and exit
   -h, --help                    Show this help
 
 Environment variables (ORMUZ_*) override defaults; CLI flags override env.
 Docs: https://github.com/grebmann1/ormuz-proxy`;
 
-function parseArgs(argv: string[]): CliArgs | "help" {
+function parseArgs(argv: string[]): CliArgs | "help" | "version" {
   const args: CliArgs = { yes: false, live: false };
   for (let i = 0; i < argv.length; i += 1) {
     const current = argv[i];
     const next = argv[i + 1];
     if (current === "-h" || current === "--help") {
       return "help";
+    }
+    if (current === "-v" || current === "--version") {
+      return "version";
     }
     switch (current) {
       case "--port":
@@ -137,13 +141,27 @@ async function promptForMissing(args: CliArgs): Promise<CliArgs> {
   return args;
 }
 
+function readPackageVersion(): string {
+  try {
+    const pkgPath = resolve(new URL("../package.json", import.meta.url).pathname);
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version?: string };
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
-  const parsedOrHelp = parseArgs(argv);
-  if (parsedOrHelp === "help") {
+  const parsed1 = parseArgs(argv);
+  if (parsed1 === "help") {
     stdout.write(`${HELP_TEXT}\n`);
     return;
   }
-  const parsed = await promptForMissing(parsedOrHelp);
+  if (parsed1 === "version") {
+    stdout.write(`${readPackageVersion()}\n`);
+    return;
+  }
+  const parsed = await promptForMissing(parsed1);
 
   const envOverrides: NodeJS.ProcessEnv = {
     ...process.env

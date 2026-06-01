@@ -25,3 +25,7 @@ jobs:
       - run: npm run build
       - name: Smoke-test the built CLI (--help)
         run: node dist/cli.js --help | grep -q "Ormuz"
+      - name: Smoke-test the built CLI (--version)
+        run: test "$(node dist/cli.js --version)" = "$(node -p "require('./package.json').version")"
+      - name: Smoke-test the built CLI is directly executable
+        run: ./dist/cli.js --help | grep -q "Ormuz"
