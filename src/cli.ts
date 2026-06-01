@@ -224,7 +224,31 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     process.exit(1);
   }
   const hooks = parsed.live ? createLiveMonitorHooks(config.port) : {};
-  await startServer(config, hooks);
+  try {
+    await startServer(config, hooks);
+  } catch (error) {
+    printStartupError(error, config.host, config.port);
+    process.exit(1);
+  }
+}
+
+function printStartupError(error: unknown, host: string, port: number): void {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  if (code === "EADDRINUSE") {
+    stderr.write(
+      `Ormuz startup error: ${host}:${port} is already in use.\n` +
+        `Pick another port with --port (or ORMUZ_PORT). To find what's holding it: 'lsof -nP -i :${port}'.\n`
+    );
+    return;
+  }
+  if (code === "EACCES") {
+    stderr.write(
+      `Ormuz startup error: permission denied binding ${host}:${port} (typically only privileged ports <1024).\n` +
+        `Use a port >=1024 with --port (or ORMUZ_PORT).\n`
+    );
+    return;
+  }
+  stderr.write(`Ormuz startup error: ${(error as Error).message ?? String(error)}\n`);
 }
 
 function printConfigError(error: unknown): void {
