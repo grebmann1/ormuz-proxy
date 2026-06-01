@@ -162,7 +162,7 @@ Targets and routing are loaded from (highest to lowest precedence merged per-key
 - `ORMUZ_PROVIDER_TARGETS_FILE` — explicit path; same shapes, plus a minimal YAML form for the legacy map.
 - `config/provider-targets.json` — auto-loaded if neither env var is set and the file exists.
 
-`config/provider-targets.json` in this repo is an example upstream-gateway config, with `providers.openai`, `providers.anthropic`, and `providers.gemini` all pointing at paths under `your-llm-gateway.example.com`, plus `routes.pathPrefixes` and `routes.headers` covering the same three. Because all four sources share the same hostname, `collectAllowedHosts` resolves to a single host — so CONNECT only allows that gateway.
+`config/provider-targets.json` in this repo points the three common providers (`openai`, `anthropic`, `gemini`) at their public API hostnames (`api.openai.com`, `api.anthropic.com`, `generativelanguage.googleapis.com`), with matching `routes.pathPrefixes` and `routes.headers` for header-based routing. Replace the targets with your own gateway URLs if you front the providers behind one. `collectAllowedHosts` collects every distinct hostname across all four sources, which is the set of CONNECT destinations the proxy will allow.
 
 Routing rules:
 
