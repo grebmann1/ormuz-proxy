@@ -21,6 +21,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm test",
     "install:autostart": "bash scripts/install-autostart.sh",
     "uninstall:autostart": "bash scripts/uninstall-autostart.sh",
     "install:systemproxy": "bash scripts/install-systemproxy.sh",

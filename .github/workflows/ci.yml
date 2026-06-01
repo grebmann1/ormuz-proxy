@@ -23,3 +23,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Smoke-test the built CLI (--help)
+        run: node dist/cli.js --help | grep -q "Ormuz"
