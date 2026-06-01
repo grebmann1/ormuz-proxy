@@ -25,7 +25,7 @@ const schema = z.object({
   ORMUZ_UPSTREAM_TOKEN: z.string().optional(),
   ORMUZ_PROVIDER_TARGETS: z.string().optional(),
   ORMUZ_PROVIDER_TARGETS_FILE: z.string().optional(),
-  ORMUZ_RPM: z.coerce.number().positive(),
+  ORMUZ_RPM: z.coerce.number().positive().default(60),
   ORMUZ_SAFETY_FACTOR: z.coerce.number().positive().max(1).default(0.95),
   ORMUZ_BUCKET_KEY: bucketKeySchema.default("auth"),
   ORMUZ_MAX_QUEUE_DEPTH: z.coerce.number().int().positive().default(200),

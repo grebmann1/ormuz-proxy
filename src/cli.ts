@@ -129,15 +129,16 @@ async function promptForMissing(args: CliArgs): Promise<CliArgs> {
     return args;
   }
 
+  const hasDefaultProviderFile = existsSync(resolve(process.cwd(), DEFAULT_PROVIDER_TARGETS_FILE));
+  const needsUpstreamPrompt =
+    !args.upstreamUrl && !args.providerTargets && !args.providerTargetsFile && !hasDefaultProviderFile;
+  if (!needsUpstreamPrompt) {
+    return args;
+  }
+
   const rl = createInterface({ input: stdin, output: stdout });
   try {
-    const hasDefaultProviderFile = existsSync(resolve(process.cwd(), DEFAULT_PROVIDER_TARGETS_FILE));
-    if (!args.rpm) {
-      args.rpm = await rl.question("RPM limit (e.g. 120): ");
-    }
-    if (!args.upstreamUrl && !args.providerTargets && !args.providerTargetsFile && !hasDefaultProviderFile) {
-      args.upstreamUrl = await rl.question("Fallback upstream URL (optional when provider targets set): ");
-    }
+    args.upstreamUrl = await rl.question("Fallback upstream URL (optional when provider targets set): ");
   } finally {
     rl.close();
   }

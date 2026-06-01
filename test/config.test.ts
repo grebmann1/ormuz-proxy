@@ -24,6 +24,11 @@ describe("loadConfig", () => {
     expect(config.port).toBe(8787);
   });
 
+  it("defaults RPM to 60 when ORMUZ_RPM is unset", () => {
+    const config = loadConfig({});
+    expect(config.rpm).toBe(60);
+  });
+
   it("merges provider targets from env and file with file precedence", () => {
     const dir = mkdtempSync(join(tmpdir(), "ormuz-config-test-"));
     dirsToCleanup.push(dir);
