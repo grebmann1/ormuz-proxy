@@ -48,7 +48,7 @@ NODE_BIN=/opt/homebrew/bin/node npm run install:autostart
 | Block in `~/.zshrc` between `# >>> ormuz autostart >>>` and `# <<< ormuz autostart <<<` | install-autostart.sh | Exports `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `GEMINI_BASE_URL` |
 | `dist/` inside the repo | `npm run build` | Compiled JS the LaunchAgent runs |
 
-The plist itself bakes in the absolute paths to `node` and the repo (see `scripts/com.ormuz.proxy.plist.template:10-21`). If you move the repo, re-run `npm run install:autostart`.
+The plist itself bakes in the absolute paths to `node` and the repo (the `ProgramArguments` block in `scripts/com.ormuz.proxy.plist.template`). If you move the repo, re-run `npm run install:autostart`.
 
 ### Verify
 
@@ -79,7 +79,7 @@ If Ormuz fails to start, the failure almost always lands in `ormuz.err.log` (Nod
 - **launchd can't find Node (Volta/nvm/asdf).** The `command -v node` lookup at install time may resolve to a shim that doesn't work under launchd's stripped PATH. Symptom: agent loads but `lsof -i :8787` is empty and `ormuz.err.log` shows `node: command not found` or a missing-binary error. Fix: re-run with `NODE_BIN=$(volta which node)` or the absolute path your version manager uses.
 - **Port 8787 already taken.** Symptom: `ormuz.err.log` shows `EADDRINUSE`. Find the offender with `lsof -i :8787`. Either stop it, or change the port (you'll need to edit the plist `--port` flag and re-bootstrap, plus update the `*_BASE_URL` env vars in `~/.zshrc` and the PAC if you also installed Option C).
 - **Build fails.** Install aborts before touching launchd or `~/.zshrc`. Run `npm run build` directly to see the TypeScript output.
-- **`dist/cli.js` missing after build.** The script aborts with that exact message (`scripts/install-autostart.sh:35-38`). Almost always means `tsconfig.build.json` was changed and emit moved; fix the build before retrying.
+- **`dist/cli.js` missing after build.** `scripts/install-autostart.sh` aborts with that exact message after running `npm run build`. Almost always means `tsconfig.build.json` was changed and emit moved; fix the build before retrying.
 - **New shell still doesn't see env vars.** The block lives in `~/.zshrc`, so non-zsh shells, terminal multiplexers that don't re-read rc, and IDE-spawned shells may miss it. Either `source ~/.zshrc` in the running shell or add the three exports to whatever your shell actually reads.
 
 ### Uninstall
@@ -96,7 +96,7 @@ This stops the LaunchAgent (`launchctl bootout`), removes the plist, and strips 
 
 `scripts/install-systemproxy.sh`:
 
-1. Reads `config/provider-targets.json` (or `ORMUZ_PROVIDER_TARGETS_FILE` if set) and extracts every hostname referenced in `providers`, `routes.pathPrefixes`, and `routes.headers[].target` (`scripts/install-systemproxy.sh:27-39`).
+1. Reads `config/provider-targets.json` (or `ORMUZ_PROVIDER_TARGETS_FILE` if set) and extracts every hostname referenced in `providers`, `routes.pathPrefixes`, and `routes.headers[].target` — actually delegates to `node dist/cli.js --print-hosts`, so the same parser the proxy uses governs the host list.
 2. Renders `scripts/ormuz.pac.template` into `~/.config/ormuz/proxy.pac`, emitting one `host == "X" || dnsDomainIs(host, ".X")` rule per extracted hostname. Everything else returns `DIRECT`.
 3. Calls `networksetup -setautoproxyurl <service> file://~/.config/ormuz/proxy.pac` and `-setautoproxystate <service> on` for every active network service (Wi-Fi, Ethernet, etc., excluding disabled ones marked with `*`).
 
@@ -135,7 +135,7 @@ The script feeds the targets file through Node and pulls hostnames out of every 
 - All values in `cfg.routes.pathPrefixes`
 - Every `target` in `cfg.routes.headers[]`
 
-Hostnames are lowercased, deduplicated, and sorted. Each becomes two PAC clauses — exact match and `dnsDomainIs` for subdomains — both routed to `PROXY 127.0.0.1:<PORT>`. If no hostnames are extracted, the script aborts (`scripts/install-systemproxy.sh:41-44`).
+Hostnames are lowercased, deduplicated, and sorted. Each becomes two PAC clauses — exact match and `dnsDomainIs` for subdomains — both routed to `PROXY 127.0.0.1:<PORT>`. If no hostnames are extracted, `scripts/install-systemproxy.sh` aborts with a "no hostnames" error before touching `networksetup`.
 
 ### Verify
 
@@ -213,7 +213,7 @@ These are the env vars worth thinking about when installing system-wide. The ful
 | Variable | Why it matters at install time |
 | --- | --- |
 | `ORMUZ_PORT` | Default `8787`. The autostart installer reads this from your environment (`ORMUZ_PORT=9090 npm run install:autostart`) and writes it into the plist, the `~/.zshrc` exports, and the health-check probe in one shot. The PAC is generated separately — re-run `npm run install:systemproxy` with the same `ORMUZ_PORT` if you also use Option C. |
-| `ORMUZ_RPM` | Default `60`; the LaunchAgent overrides to `30` (`scripts/com.ormuz.proxy.plist.template:13-14`). Set this to your gateway's actual sustained limit, then back off another 5-10% for safety. |
+| `ORMUZ_RPM` | Default `60`; the LaunchAgent overrides to `30` via the `--rpm 30` arg in `scripts/com.ormuz.proxy.plist.template`. Set this to your gateway's actual sustained limit, then back off another 5-10% for safety. |
 | `ORMUZ_SAFETY_FACTOR` | Default `0.95`. Drop to ~`0.8` if you observe frequent upstream `429`s; raise toward `1.0` if you have headroom. |
 | `ORMUZ_BUCKET_KEY` | Default `auth`. Use `host` when running A + C together so HTTP and CONNECT to the same upstream share a budget. |
 | `ORMUZ_MAX_QUEUE_DEPTH` | Default `200`. Raise for bursty workloads where you'd rather wait than get a local `429`; lower if memory is tight. |
@@ -221,7 +221,7 @@ These are the env vars worth thinking about when installing system-wide. The ful
 | `ORMUZ_MAX_RETRY_AFTER_MS` | Unset by default; the LaunchAgent caps at `5000` ms. Lower if upstream returns large `Retry-After` values that lock the bucket too long. |
 | `ORMUZ_LOG_LEVEL` | Default `info`. Set to `debug` only briefly when diagnosing — verbose logs grow fast under load. |
 
-Set these via the `EnvironmentVariables` dict in the LaunchAgent plist (`scripts/com.ormuz.proxy.plist.template:22-26`), or as CLI flags in `ProgramArguments`. The plist accepts both.
+Set these via the `EnvironmentVariables` dict in the LaunchAgent plist (`scripts/com.ormuz.proxy.plist.template`), or as CLI flags in `ProgramArguments`. The plist accepts both.
 
 ## Uninstalling
 
