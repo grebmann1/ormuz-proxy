@@ -1,33 +1,4 @@
-import {
-  Counter,
-  Gauge,
-  Histogram,
-  Registry,
-  collectDefaultMetrics,
-  type CounterConfiguration,
-  type GaugeConfiguration,
-  type HistogramConfiguration
-} from "prom-client";
-
-type LabelNames<T extends string> = Record<T, string>;
-
-function makeCounter<T extends string>(
-  registry: Registry,
-  config: Omit<CounterConfiguration<T>, "registers">
-): Counter<T> {
-  return new Counter({ ...config, registers: [registry] });
-}
-
-function makeGauge<T extends string>(registry: Registry, config: Omit<GaugeConfiguration<T>, "registers">): Gauge<T> {
-  return new Gauge({ ...config, registers: [registry] });
-}
-
-function makeHistogram<T extends string>(
-  registry: Registry,
-  config: Omit<HistogramConfiguration<T>, "registers">
-): Histogram<T> {
-  return new Histogram({ ...config, registers: [registry] });
-}
+import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 
 export class OrmuzMetrics {
   public readonly registry = new Registry();
@@ -40,32 +11,38 @@ export class OrmuzMetrics {
 
   public constructor() {
     collectDefaultMetrics({ register: this.registry });
+    const registers = [this.registry];
 
-    this.queueDepth = makeGauge(this.registry, {
+    this.queueDepth = new Gauge({
       name: "ormuz_queue_depth",
       help: "Current queued requests per bucket key",
-      labelNames: ["key"]
+      labelNames: ["key"],
+      registers
     });
-    this.queueWaitSeconds = makeHistogram(this.registry, {
+    this.queueWaitSeconds = new Histogram({
       name: "ormuz_queue_wait_seconds",
       help: "How long requests wait in queue",
       labelNames: ["key"],
-      buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+      buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60],
+      registers
     });
-    this.tokensAvailable = makeGauge(this.registry, {
+    this.tokensAvailable = new Gauge({
       name: "ormuz_tokens_available",
       help: "Available tokens in bucket",
-      labelNames: ["key"]
+      labelNames: ["key"],
+      registers
     });
-    this.requestsTotal = makeCounter(this.registry, {
+    this.requestsTotal = new Counter({
       name: "ormuz_requests_total",
       help: "Total request outcomes",
-      labelNames: ["outcome"]
+      labelNames: ["outcome"],
+      registers
     });
-    this.upstreamStatusTotal = makeCounter(this.registry, {
+    this.upstreamStatusTotal = new Counter({
       name: "ormuz_upstream_status_total",
       help: "Upstream status code count",
-      labelNames: ["code"]
+      labelNames: ["code"],
+      registers
     });
   }
 
@@ -106,8 +83,4 @@ export class OrmuzMetrics {
   public contentType(): string {
     return this.registry.contentType;
   }
-}
-
-export function labels<T extends string>(values: LabelNames<T>): LabelNames<T> {
-  return values;
 }
