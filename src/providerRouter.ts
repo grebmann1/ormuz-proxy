@@ -7,11 +7,18 @@ export type ProviderResolution = {
   routeStrategy: "providerPrefix" | "pathPrefix" | "header";
 };
 
+const normalizedTargetCache = new WeakMap<Record<string, string>, Map<string, string>>();
+
 function normalizeTargetMap(targets: Record<string, string>): Map<string, string> {
+  const cached = normalizedTargetCache.get(targets);
+  if (cached) {
+    return cached;
+  }
   const map = new Map<string, string>();
   for (const [provider, target] of Object.entries(targets)) {
     map.set(provider.toLowerCase(), target.replace(/\/+$/, ""));
   }
+  normalizedTargetCache.set(targets, map);
   return map;
 }
 
