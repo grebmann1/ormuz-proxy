@@ -33,7 +33,6 @@ export type ProxyRequest = {
   onForwardStart?: () => void;
   onUpstreamStatus?: (statusCode: number) => void;
   onForwardResult?: (statusCode: number) => void;
-  onUpstream429?: (retryAfterMs: number) => void;
   onForwarded?: () => void;
 };
 
@@ -115,7 +114,6 @@ export async function forwardRequest(params: ProxyRequest): Promise<ScheduledRes
     const retryAfterHeader = upstream.headers["retry-after"];
     const retryAfter = Array.isArray(retryAfterHeader) ? retryAfterHeader[0] : retryAfterHeader;
     const retryAfterMs = parseRetryAfter(retryAfter);
-    params.onUpstream429?.(retryAfterMs);
     return { kind: "upstream_429", retryAfterMs };
   }
 
@@ -164,5 +162,3 @@ export function deriveBucketKey(
 function hashAuth(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 8);
 }
-
-export { parseRetryAfter };
