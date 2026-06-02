@@ -36,19 +36,20 @@ export class CliArgError extends Error {
   }
 }
 
-const VALUE_FLAG_TARGETS: Record<string, keyof CliArgs> = {
-  "--port": "port",
-  "--host": "host",
-  "--rpm": "rpm",
-  "--upstream-url": "upstreamUrl",
-  "--provider-targets": "providerTargets",
-  "--provider-targets-file": "providerTargetsFile",
-  "--bucket-key": "bucketKey",
-  "--max-queue-depth": "maxQueueDepth",
-  "--max-queue-wait-ms": "maxQueueWaitMs",
-  "--max-retry-after-ms": "maxRetryAfterMs",
-  "--log-level": "logLevel",
-  "--safety-factor": "safetyFactor"
+type ValueFlagSpec = { key: keyof CliArgs; env: string };
+const VALUE_FLAGS: Record<string, ValueFlagSpec> = {
+  "--port": { key: "port", env: "ORMUZ_PORT" },
+  "--host": { key: "host", env: "ORMUZ_HOST" },
+  "--rpm": { key: "rpm", env: "ORMUZ_RPM" },
+  "--upstream-url": { key: "upstreamUrl", env: "ORMUZ_UPSTREAM_BASE_URL" },
+  "--provider-targets": { key: "providerTargets", env: "ORMUZ_PROVIDER_TARGETS" },
+  "--provider-targets-file": { key: "providerTargetsFile", env: "ORMUZ_PROVIDER_TARGETS_FILE" },
+  "--bucket-key": { key: "bucketKey", env: "ORMUZ_BUCKET_KEY" },
+  "--max-queue-depth": { key: "maxQueueDepth", env: "ORMUZ_MAX_QUEUE_DEPTH" },
+  "--max-queue-wait-ms": { key: "maxQueueWaitMs", env: "ORMUZ_MAX_QUEUE_WAIT_MS" },
+  "--max-retry-after-ms": { key: "maxRetryAfterMs", env: "ORMUZ_MAX_RETRY_AFTER_MS" },
+  "--log-level": { key: "logLevel", env: "ORMUZ_LOG_LEVEL" },
+  "--safety-factor": { key: "safetyFactor", env: "ORMUZ_SAFETY_FACTOR" }
 };
 
 const VALID_BUCKET_KEYS = ["auth", "global", "model", "host"] as const;
@@ -109,13 +110,13 @@ export function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print
       args.live = true;
       continue;
     }
-    const target = VALUE_FLAG_TARGETS[current];
-    if (target) {
+    const spec = VALUE_FLAGS[current];
+    if (spec) {
       const next = argv[i + 1];
       if (next === undefined || next.startsWith("--")) {
         throw new CliArgError(`Flag ${current} expects a value but none was provided.`);
       }
-      (args as Record<string, unknown>)[target] = next;
+      (args as Record<string, unknown>)[spec.key] = next;
       i += 1;
       continue;
     }
@@ -219,18 +220,12 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const envOverrides: NodeJS.ProcessEnv = {
     ...process.env
   };
-  if (parsed.port) envOverrides.ORMUZ_PORT = parsed.port;
-  if (parsed.host) envOverrides.ORMUZ_HOST = parsed.host;
-  if (parsed.rpm) envOverrides.ORMUZ_RPM = parsed.rpm;
-  if (parsed.upstreamUrl) envOverrides.ORMUZ_UPSTREAM_BASE_URL = parsed.upstreamUrl;
-  if (parsed.providerTargets) envOverrides.ORMUZ_PROVIDER_TARGETS = parsed.providerTargets;
-  if (parsed.providerTargetsFile) envOverrides.ORMUZ_PROVIDER_TARGETS_FILE = parsed.providerTargetsFile;
-  if (parsed.bucketKey) envOverrides.ORMUZ_BUCKET_KEY = parsed.bucketKey;
-  if (parsed.maxQueueDepth) envOverrides.ORMUZ_MAX_QUEUE_DEPTH = parsed.maxQueueDepth;
-  if (parsed.maxQueueWaitMs) envOverrides.ORMUZ_MAX_QUEUE_WAIT_MS = parsed.maxQueueWaitMs;
-  if (parsed.maxRetryAfterMs) envOverrides.ORMUZ_MAX_RETRY_AFTER_MS = parsed.maxRetryAfterMs;
-  if (parsed.logLevel) envOverrides.ORMUZ_LOG_LEVEL = parsed.logLevel;
-  if (parsed.safetyFactor) envOverrides.ORMUZ_SAFETY_FACTOR = parsed.safetyFactor;
+  for (const spec of Object.values(VALUE_FLAGS)) {
+    const value = parsed[spec.key];
+    if (typeof value === "string" && value.length > 0) {
+      envOverrides[spec.env] = value;
+    }
+  }
 
   let config;
   try {
