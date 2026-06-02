@@ -85,6 +85,18 @@ function parseYamlLikeObject(input: string): Record<string, string> {
   return result;
 }
 
+function expandLegacyTargets(targets: Record<string, string>): { providerTargets: Record<string, string>; routingRules: RoutingRules } {
+  return {
+    providerTargets: targets,
+    routingRules: normalizeRoutingRules({
+      pathPrefixes: Object.fromEntries(
+        Object.entries(targets).map(([provider, target]) => [`/v1/${provider.toLowerCase()}`, target])
+      ),
+      headers: []
+    })
+  };
+}
+
 function parseProviderTargetsValue(raw: string, source: string): { providerTargets: Record<string, string>; routingRules: RoutingRules } {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -98,30 +110,11 @@ function parseProviderTargetsValue(raw: string, source: string): { providerTarge
       };
     }
 
-    const legacyTargets = providerTargetsSchema.parse(parsed);
-    return {
-      providerTargets: legacyTargets,
-      routingRules: normalizeRoutingRules({
-        pathPrefixes: Object.fromEntries(
-          Object.entries(legacyTargets).map(([provider, target]) => [`/v1/${provider.toLowerCase()}`, target])
-        ),
-        headers: []
-      })
-    };
+    return expandLegacyTargets(providerTargetsSchema.parse(parsed));
   } catch {
     const ext = extname(source).toLowerCase();
     if (ext === ".yaml" || ext === ".yml") {
-      const yamlObject = parseYamlLikeObject(raw);
-      const legacyTargets = providerTargetsSchema.parse(yamlObject);
-      return {
-        providerTargets: legacyTargets,
-        routingRules: normalizeRoutingRules({
-          pathPrefixes: Object.fromEntries(
-            Object.entries(legacyTargets).map(([provider, target]) => [`/v1/${provider.toLowerCase()}`, target])
-          ),
-          headers: []
-        })
-      };
+      return expandLegacyTargets(providerTargetsSchema.parse(parseYamlLikeObject(raw)));
     }
     throw new Error(`Unable to parse provider targets from ${source}. Expected JSON, YAML, or YML.`);
   }
