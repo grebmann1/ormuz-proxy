@@ -9,7 +9,7 @@ import { HookRegistry, type OrmuzHooks } from "./hooks.js";
 import { OrmuzMetrics } from "./metrics.js";
 import { resolveConfiguredRoute, resolveProviderRoute } from "./providerRouter.js";
 import { deriveBucketKey, forwardRequest } from "./proxy.js";
-import { RequestScheduler, type SchedulerHooks } from "./scheduler.js";
+import { RequestScheduler, type SchedulerHooks, type SubmitHooks } from "./scheduler.js";
 import { QueueRejectedError } from "./types.js";
 
 let cachedVersion: string | undefined;
@@ -154,7 +154,6 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
   });
 
   const schedulerHooks: SchedulerHooks = metrics.schedulerHooks();
-  const requestContext = new Map<string, { requestId: string; method: string; originalPath: string; provider?: string }>();
 
   const scheduler = new RequestScheduler<void>({
     bucketCapacity: config.effectiveRpm,
@@ -162,37 +161,7 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     maxQueueDepth: config.maxQueueDepth,
     maxQueueWaitMs: config.maxQueueWaitMs,
     maxRetryAfterMs: config.maxRetryAfterMs,
-    hooks: {
-      ...schedulerHooks,
-      onQueued: (bucketKey, depth) => {
-        schedulerHooks.onQueued?.(bucketKey, depth);
-        const ctx = requestContext.get(bucketKey);
-        if (ctx) {
-          hookRegistry.emitQueued({
-            requestId: ctx.requestId,
-            method: ctx.method,
-            originalPath: ctx.originalPath,
-            bucketKey,
-            provider: ctx.provider,
-            queueDepth: depth
-          });
-        }
-      },
-      onUpstream429: (bucketKey, retryAfterMs) => {
-        schedulerHooks.onUpstream429?.(bucketKey, retryAfterMs);
-        const ctx = requestContext.get(bucketKey);
-        if (ctx) {
-          hookRegistry.emitUpstream429({
-            requestId: ctx.requestId,
-            method: ctx.method,
-            originalPath: ctx.originalPath,
-            bucketKey,
-            provider: ctx.provider,
-            retryAfterMs
-          });
-        }
-      }
-    }
+    hooks: schedulerHooks
   });
 
   const startedAtMs = Date.now();
@@ -223,11 +192,6 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     const pathOnly = resolvedRoute?.rewrittenPath ?? originalPath;
     const upstreamHost = upstreamBaseUrl ? safeHostname(upstreamBaseUrl) : undefined;
     const bucketKey = deriveBucketKey(config.bucketKeyMode, request.headers, bodyForKey, upstreamHost);
-    requestContext.set(bucketKey, {
-      requestId,
-      method: request.method,
-      originalPath: request.url
-    });
     hookRegistry.emitRequestReceived({
       requestId,
       method: request.method,
@@ -258,12 +222,6 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     }
 
     if (resolvedRoute) {
-      requestContext.set(bucketKey, {
-        requestId,
-        method: request.method,
-        originalPath: request.url,
-        provider: resolvedRoute.provider
-      });
       hookRegistry.emitProviderResolved({
         requestId,
         method: request.method,
@@ -276,41 +234,65 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
       });
     }
 
-    try {
-      await scheduler.submit(bucketKey, (attempt) =>
-        forwardRequest({
-          upstreamBaseUrl,
+    const submitHooks: SubmitHooks = {
+      onQueued: (depth) =>
+        hookRegistry.emitQueued({
+          requestId,
           method: request.method,
-          path: pathOnly,
-          queryString,
-          headers: request.headers,
-          body: rawBody,
-          reply,
-          attempt,
-          onForwardStart: () =>
-            hookRegistry.emitForwardStart({
-              requestId,
-              method: request.method,
-              originalPath: request.url,
-              bucketKey,
-              provider: resolvedRoute?.provider,
-              routeStrategy: resolvedRoute?.routeStrategy,
-              upstreamBaseUrl,
-              upstreamPath: pathOnly
-            }),
-          onUpstreamStatus: (code) => metrics.recordUpstreamStatus(code),
-          onForwardResult: (statusCode) =>
-            hookRegistry.emitForwardResult({
-              requestId,
-              method: request.method,
-              originalPath: request.url,
-              bucketKey,
-              provider: resolvedRoute?.provider,
-              routeStrategy: resolvedRoute?.routeStrategy,
-              statusCode
-            }),
-          onForwarded: () => metrics.recordForwarded()
+          originalPath: request.url,
+          bucketKey,
+          provider: resolvedRoute?.provider,
+          queueDepth: depth
+        }),
+      onUpstream429: (retryAfterMs) =>
+        hookRegistry.emitUpstream429({
+          requestId,
+          method: request.method,
+          originalPath: request.url,
+          bucketKey,
+          provider: resolvedRoute?.provider,
+          retryAfterMs
         })
+    };
+
+    try {
+      await scheduler.submit(
+        bucketKey,
+        (attempt) =>
+          forwardRequest({
+            upstreamBaseUrl,
+            method: request.method,
+            path: pathOnly,
+            queryString,
+            headers: request.headers,
+            body: rawBody,
+            reply,
+            attempt,
+            onForwardStart: () =>
+              hookRegistry.emitForwardStart({
+                requestId,
+                method: request.method,
+                originalPath: request.url,
+                bucketKey,
+                provider: resolvedRoute?.provider,
+                routeStrategy: resolvedRoute?.routeStrategy,
+                upstreamBaseUrl,
+                upstreamPath: pathOnly
+              }),
+            onUpstreamStatus: (code) => metrics.recordUpstreamStatus(code),
+            onForwardResult: (statusCode) =>
+              hookRegistry.emitForwardResult({
+                requestId,
+                method: request.method,
+                originalPath: request.url,
+                bucketKey,
+                provider: resolvedRoute?.provider,
+                routeStrategy: resolvedRoute?.routeStrategy,
+                statusCode
+              }),
+            onForwarded: () => metrics.recordForwarded()
+          }),
+        submitHooks
       );
       hookRegistry.emitRequestCompleted({
         requestId,
@@ -348,8 +330,6 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
         error: "proxy_failure",
         message: "Unexpected proxy failure"
       });
-    } finally {
-      requestContext.delete(bucketKey);
     }
   });
 

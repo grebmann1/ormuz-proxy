@@ -8,6 +8,7 @@ type QueueItem<T> = {
   resolve: (value: T) => void;
   reject: (error: unknown) => void;
   enqueuedAtMs: number;
+  submitHooks?: SubmitHooks;
 };
 
 type BucketState<T> = {
@@ -34,12 +35,17 @@ export type SchedulerOptions = {
   hooks?: SchedulerHooks;
 };
 
+export type SubmitHooks = {
+  onQueued?: (depth: number) => void;
+  onUpstream429?: (retryAfterMs: number) => void;
+};
+
 export class RequestScheduler<T> {
   private readonly buckets = new Map<string, BucketState<T>>();
 
   public constructor(private readonly options: SchedulerOptions) {}
 
-  public submit(bucketKey: string, task: ScheduledTask<T>): Promise<T> {
+  public submit(bucketKey: string, task: ScheduledTask<T>, submitHooks?: SubmitHooks): Promise<T> {
     const state = this.getOrCreateState(bucketKey);
     const projectedWaitMs =
       state.queue.projectedWaitMs(this.options.refillPerSec) + state.bucket.waitUntilNextTokenMs();
@@ -54,10 +60,13 @@ export class RequestScheduler<T> {
         task,
         resolve,
         reject,
-        enqueuedAtMs: Date.now()
+        enqueuedAtMs: Date.now(),
+        submitHooks
       };
       state.queue.enqueue(item);
-      this.options.hooks?.onQueued?.(bucketKey, state.queue.size());
+      const depth = state.queue.size();
+      this.options.hooks?.onQueued?.(bucketKey, depth);
+      submitHooks?.onQueued?.(depth);
       this.schedule(bucketKey, state);
     });
   }
@@ -127,6 +136,7 @@ export class RequestScheduler<T> {
         ? Math.min(result.retryAfterMs, this.options.maxRetryAfterMs)
         : result.retryAfterMs;
       this.options.hooks?.onUpstream429?.(bucketKey, cappedRetryAfterMs);
+      item.submitHooks?.onUpstream429?.(cappedRetryAfterMs);
       state.bucket.pauseUntil(Date.now() + cappedRetryAfterMs);
       if (item.attempt === 0) {
         state.queue.enqueueFront({ ...item, attempt: 1, enqueuedAtMs: Date.now() });

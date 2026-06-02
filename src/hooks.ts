@@ -24,12 +24,15 @@ export type OrmuzHooks = {
   onRequestCompleted?: (payload: RequestLifecyclePayload) => void;
 };
 
-function safelyRun(hook: (() => void) | undefined): void {
+function safelyEmit(
+  hook: ((payload: RequestLifecyclePayload) => void) | undefined,
+  payload: RequestLifecyclePayload
+): void {
   if (!hook) {
     return;
   }
   try {
-    hook();
+    hook(payload);
   } catch {
     // Hook failures are intentionally ignored to keep the proxy path stable.
   }
@@ -39,30 +42,30 @@ export class HookRegistry {
   public constructor(private readonly hooks: OrmuzHooks = {}) {}
 
   public emitRequestReceived(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onRequestReceived ? () => this.hooks.onRequestReceived?.(payload) : undefined);
+    safelyEmit(this.hooks.onRequestReceived, payload);
   }
 
   public emitProviderResolved(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onProviderResolved ? () => this.hooks.onProviderResolved?.(payload) : undefined);
+    safelyEmit(this.hooks.onProviderResolved, payload);
   }
 
   public emitQueued(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onQueued ? () => this.hooks.onQueued?.(payload) : undefined);
+    safelyEmit(this.hooks.onQueued, payload);
   }
 
   public emitForwardStart(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onForwardStart ? () => this.hooks.onForwardStart?.(payload) : undefined);
+    safelyEmit(this.hooks.onForwardStart, payload);
   }
 
   public emitForwardResult(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onForwardResult ? () => this.hooks.onForwardResult?.(payload) : undefined);
+    safelyEmit(this.hooks.onForwardResult, payload);
   }
 
   public emitUpstream429(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onUpstream429 ? () => this.hooks.onUpstream429?.(payload) : undefined);
+    safelyEmit(this.hooks.onUpstream429, payload);
   }
 
   public emitRequestCompleted(payload: RequestLifecyclePayload): void {
-    safelyRun(this.hooks.onRequestCompleted ? () => this.hooks.onRequestCompleted?.(payload) : undefined);
+    safelyEmit(this.hooks.onRequestCompleted, payload);
   }
 }
