@@ -143,13 +143,13 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     hookRegistry.emitRequestReceived({
       requestId,
       method: request.method,
-      originalPath: request.url,
+      originalPath,
       bucketKey
     });
     const baseHookPayload = {
       requestId,
       method: request.method,
-      originalPath: request.url,
+      originalPath,
       bucketKey,
       provider: resolvedRoute?.provider,
       routeStrategy: resolvedRoute?.routeStrategy
