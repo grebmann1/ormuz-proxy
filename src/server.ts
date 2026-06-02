@@ -302,6 +302,15 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     }
     const bucketKey = `host:${target.host}`;
 
+    const respondToConnectError = (error: unknown): void => {
+      if (error instanceof QueueRejectedError) {
+        const retrySec = Math.ceil(error.retryAfterMs / 1000);
+        writeAndDestroy(clientSocket, `HTTP/1.1 429 Too Many Requests\r\nRetry-After: ${retrySec}\r\n\r\n`);
+        return;
+      }
+      writeAndDestroy(clientSocket, "HTTP/1.1 502 Bad Gateway\r\n\r\n");
+    };
+
     let pending: Promise<void>;
     try {
       pending = scheduler.submit(bucketKey, () => {
@@ -331,28 +340,10 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
         });
       });
     } catch (error) {
-      if (error instanceof QueueRejectedError) {
-        const retrySec = Math.ceil(error.retryAfterMs / 1000);
-        writeAndDestroy(
-          clientSocket,
-          `HTTP/1.1 429 Too Many Requests\r\nRetry-After: ${retrySec}\r\n\r\n`
-        );
-        return;
-      }
-      writeAndDestroy(clientSocket, "HTTP/1.1 502 Bad Gateway\r\n\r\n");
+      respondToConnectError(error);
       return;
     }
-    pending.catch((error) => {
-      if (error instanceof QueueRejectedError) {
-        const retrySec = Math.ceil(error.retryAfterMs / 1000);
-        writeAndDestroy(
-          clientSocket,
-          `HTTP/1.1 429 Too Many Requests\r\nRetry-After: ${retrySec}\r\n\r\n`
-        );
-        return;
-      }
-      writeAndDestroy(clientSocket, "HTTP/1.1 502 Bad Gateway\r\n\r\n");
-    });
+    pending.catch(respondToConnectError);
   };
 
   app.addHook("onListen", async () => {
