@@ -133,9 +133,9 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
         : undefined;
     const [splitPath, queryString = ""] = request.url.split("?");
     const originalPath = splitPath ?? "/";
-    const configuredRoute = resolveConfiguredRoute(originalPath, request.headers, config.routingRules);
-    const providerRoute = resolveProviderRoute(originalPath, config.providerTargets);
-    const resolvedRoute = configuredRoute ?? providerRoute;
+    const resolvedRoute =
+      resolveConfiguredRoute(originalPath, request.headers, config.routingRules) ??
+      resolveProviderRoute(originalPath, config.providerTargets);
     const upstreamBaseUrl = resolvedRoute?.upstreamBaseUrl ?? config.upstreamBaseUrl;
     const pathOnly = resolvedRoute?.rewrittenPath ?? originalPath;
     const upstreamHost = upstreamBaseUrl ? safeHostname(upstreamBaseUrl) : undefined;
