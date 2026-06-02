@@ -4,8 +4,9 @@
 
 import { existsSync, copyFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = resolve(new URL("..", import.meta.url).pathname);
+const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const envPath = resolve(repoRoot, ".env");
 const examplePath = resolve(repoRoot, ".env.example");
 const providersPath = resolve(repoRoot, "config/provider-targets.json");
