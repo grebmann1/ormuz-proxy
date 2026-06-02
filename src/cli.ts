@@ -29,6 +29,31 @@ type CliArgs = {
   yes: boolean;
 };
 
+export class CliArgError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "CliArgError";
+  }
+}
+
+const VALUE_FLAG_TARGETS: Record<string, keyof CliArgs> = {
+  "--port": "port",
+  "--host": "host",
+  "--rpm": "rpm",
+  "--upstream-url": "upstreamUrl",
+  "--provider-targets": "providerTargets",
+  "--provider-targets-file": "providerTargetsFile",
+  "--bucket-key": "bucketKey",
+  "--max-queue-depth": "maxQueueDepth",
+  "--max-queue-wait-ms": "maxQueueWaitMs",
+  "--max-retry-after-ms": "maxRetryAfterMs",
+  "--log-level": "logLevel",
+  "--safety-factor": "safetyFactor"
+};
+
+const VALID_BUCKET_KEYS = ["auth", "global", "model", "host"] as const;
+const VALID_LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace"] as const;
+
 const HELP_TEXT = `Ormuz — client-side LLM forward proxy
 
 Usage:
@@ -57,11 +82,13 @@ Options:
 Environment variables (ORMUZ_*) override defaults; CLI flags override env.
 Docs: https://github.com/grebmann1/ormuz-proxy`;
 
-function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts" | "print-config" {
+export function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts" | "print-config" {
   const args: CliArgs = { yes: false, live: false };
   for (let i = 0; i < argv.length; i += 1) {
     const current = argv[i];
-    const next = argv[i + 1];
+    if (current === undefined) {
+      continue;
+    }
     if (current === "-h" || current === "--help") {
       return "help";
     }
@@ -74,65 +101,38 @@ function parseArgs(argv: string[]): CliArgs | "help" | "version" | "print-hosts"
     if (current === "--print-config") {
       return "print-config";
     }
-    switch (current) {
-      case "--port":
-        args.port = next;
-        i += 1;
-        break;
-      case "--host":
-        args.host = next;
-        i += 1;
-        break;
-      case "--rpm":
-        args.rpm = next;
-        i += 1;
-        break;
-      case "--upstream-url":
-        args.upstreamUrl = next;
-        i += 1;
-        break;
-      case "--provider-targets":
-        args.providerTargets = next;
-        i += 1;
-        break;
-      case "--provider-targets-file":
-        args.providerTargetsFile = next;
-        i += 1;
-        break;
-      case "--bucket-key":
-        args.bucketKey = next;
-        i += 1;
-        break;
-      case "--max-queue-depth":
-        args.maxQueueDepth = next;
-        i += 1;
-        break;
-      case "--max-queue-wait-ms":
-        args.maxQueueWaitMs = next;
-        i += 1;
-        break;
-      case "--max-retry-after-ms":
-        args.maxRetryAfterMs = next;
-        i += 1;
-        break;
-      case "--log-level":
-        args.logLevel = next;
-        i += 1;
-        break;
-      case "--safety-factor":
-        args.safetyFactor = next;
-        i += 1;
-        break;
-      case "--yes":
-        args.yes = true;
-        break;
-      case "--live":
-        args.live = true;
-        break;
-      default:
-        break;
+    if (current === "--yes") {
+      args.yes = true;
+      continue;
     }
+    if (current === "--live") {
+      args.live = true;
+      continue;
+    }
+    const target = VALUE_FLAG_TARGETS[current];
+    if (target) {
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith("--")) {
+        throw new CliArgError(`Flag ${current} expects a value but none was provided.`);
+      }
+      (args as Record<string, unknown>)[target] = next;
+      i += 1;
+      continue;
+    }
+    throw new CliArgError(`Unknown argument: ${current}. Run --help to see supported flags.`);
   }
+
+  if (args.bucketKey && !(VALID_BUCKET_KEYS as readonly string[]).includes(args.bucketKey)) {
+    throw new CliArgError(
+      `Invalid --bucket-key '${args.bucketKey}'. Expected one of: ${VALID_BUCKET_KEYS.join(", ")}.`
+    );
+  }
+  if (args.logLevel && !(VALID_LOG_LEVELS as readonly string[]).includes(args.logLevel)) {
+    throw new CliArgError(
+      `Invalid --log-level '${args.logLevel}'. Expected one of: ${VALID_LOG_LEVELS.join(", ")}.`
+    );
+  }
+
   return args;
 }
 
@@ -171,7 +171,16 @@ function loadDotEnvIfPresent(): void {
 }
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
-  const parsed1 = parseArgs(argv);
+  let parsed1: ReturnType<typeof parseArgs>;
+  try {
+    parsed1 = parseArgs(argv);
+  } catch (error) {
+    if (error instanceof CliArgError) {
+      stderr.write(`Ormuz: ${error.message}\n`);
+      process.exit(2);
+    }
+    throw error;
+  }
   if (parsed1 === "help") {
     stdout.write(`${HELP_TEXT}\n`);
     return;
