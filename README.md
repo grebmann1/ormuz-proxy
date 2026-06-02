@@ -110,10 +110,10 @@ Use these to confirm `.env`, `config/provider-targets.json`, and CLI flags merge
 ## Run checks
 
 ```bash
-npm run typecheck
-npm run lint
-npm test
+npm run verify     # lint + typecheck + tests (what CI runs)
 ```
+
+Granular targets are also available: `npm run lint`, `npm run typecheck`, `npm test`, `npm run lint:fix`.
 
 ## Configuration
 

@@ -15,7 +15,9 @@ type BucketState<T> = {
   bucket: TokenBucket;
   queue: BoundedQueue<QueueItem<T>>;
   timer: NodeJS.Timeout | undefined;
+  evictTimer: NodeJS.Timeout | undefined;
   draining: boolean;
+  inFlight: number;
 };
 
 export type SchedulerHooks = {
@@ -32,6 +34,10 @@ export type SchedulerOptions = {
   maxQueueDepth: number;
   maxQueueWaitMs: number;
   maxRetryAfterMs?: number;
+  // Evict idle bucket state this long after a bucket becomes empty + fully refilled.
+  // Default 60s. Eviction is observationally equivalent to keeping the bucket since a
+  // fresh bucket starts full at the same capacity. Set to 0 to disable.
+  idleEvictionMs?: number;
   hooks?: SchedulerHooks;
 };
 
@@ -52,6 +58,11 @@ export class RequestScheduler<T> {
     if (state.queue.isFull() || projectedWaitMs > this.options.maxQueueWaitMs) {
       this.options.hooks?.onQueueRejected?.(bucketKey, projectedWaitMs);
       throw new QueueRejectedError(Math.max(1_000, projectedWaitMs));
+    }
+
+    if (state.evictTimer) {
+      clearTimeout(state.evictTimer);
+      state.evictTimer = undefined;
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -75,6 +86,10 @@ export class RequestScheduler<T> {
     return this.buckets.get(bucketKey)?.queue.size() ?? 0;
   }
 
+  public bucketCount(): number {
+    return this.buckets.size;
+  }
+
   private getOrCreateState(bucketKey: string): BucketState<T> {
     const existing = this.buckets.get(bucketKey);
     if (existing) {
@@ -85,10 +100,41 @@ export class RequestScheduler<T> {
       bucket: new TokenBucket(this.options.bucketCapacity, this.options.refillPerSec),
       queue: new BoundedQueue<QueueItem<T>>(this.options.maxQueueDepth),
       timer: undefined,
-      draining: false
+      evictTimer: undefined,
+      draining: false,
+      inFlight: 0
     };
     this.buckets.set(bucketKey, state);
     return state;
+  }
+
+  private maybeScheduleEviction(bucketKey: string, state: BucketState<T>): void {
+    const idleEvictionMs = this.options.idleEvictionMs ?? 60_000;
+    if (idleEvictionMs <= 0 || state.evictTimer) {
+      return;
+    }
+    if (state.queue.size() > 0 || state.inFlight > 0 || state.timer) {
+      return;
+    }
+    // Delay long enough for the token bucket to refill to capacity. After that,
+    // the in-memory state is observationally equivalent to a freshly created bucket.
+    const tokensMissing = Math.max(0, this.options.bucketCapacity - state.bucket.availableTokens());
+    const refillMs =
+      this.options.refillPerSec > 0
+        ? Math.ceil((tokensMissing / this.options.refillPerSec) * 1000)
+        : 0;
+    const delay = Math.max(idleEvictionMs, refillMs);
+    state.evictTimer = setTimeout(() => {
+      state.evictTimer = undefined;
+      const live = this.buckets.get(bucketKey);
+      if (!live || live !== state) {
+        return;
+      }
+      if (live.queue.size() === 0 && live.inFlight === 0 && !live.timer) {
+        this.buckets.delete(bucketKey);
+      }
+    }, delay);
+    state.evictTimer.unref();
   }
 
   private schedule(bucketKey: string, state: BucketState<T>): void {
@@ -117,6 +163,7 @@ export class RequestScheduler<T> {
         }
 
         this.options.hooks?.onDequeued?.(bucketKey, Date.now() - item.enqueuedAtMs, state.queue.size());
+        state.inFlight += 1;
         void this.executeItem(bucketKey, state, item);
       }
     } finally {
@@ -140,7 +187,6 @@ export class RequestScheduler<T> {
       state.bucket.pauseUntil(Date.now() + cappedRetryAfterMs);
       if (item.attempt === 0) {
         state.queue.enqueueFront({ ...item, attempt: 1, enqueuedAtMs: Date.now() });
-        this.schedule(bucketKey, state);
         return;
       }
 
@@ -148,7 +194,9 @@ export class RequestScheduler<T> {
     } catch (error) {
       item.reject(error);
     } finally {
+      state.inFlight -= 1;
       this.schedule(bucketKey, state);
+      this.maybeScheduleEviction(bucketKey, state);
     }
   }
 }
