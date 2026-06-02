@@ -132,7 +132,7 @@ When the upstream answers `429` and it is the first attempt (`src/proxy.ts`):
 
 | Mode | Key shape | Notes |
 |------|-----------|-------|
-| `auth` (default) | `auth:<authorization-header-verbatim>` or `auth:anonymous` | Best fairness when many internal users share one Ormuz |
+| `auth` (default) | `auth:<sha256-prefix>` or `auth:anonymous` | Best fairness when many internal users share one Ormuz. The `Authorization` header is hashed (8-char SHA-256 prefix) so raw tokens never appear in `/metrics` labels, logs, or hooks. |
 | `global` | `global` | One bucket for everything; simplest |
 | `model` | `model:<body.model>` or `model:unknown` | Per-model pacing; requires JSON body |
 | `host` | `host:<lowercased-upstream-hostname>` or `host:unknown` | Per-upstream pacing |
@@ -194,7 +194,7 @@ Hook handlers run inside `safelyRun` (`src/hooks.ts`); thrown errors are swallow
 - `ormuz_requests_total{outcome}` — `forwarded` | `queued` | `client_429` | `upstream_429`
 - `ormuz_upstream_status_total{code}` — count per upstream status code (also incremented as `200` for successful CONNECT establishments, `src/server.ts`)
 
-Under `ORMUZ_BUCKET_KEY=host`, the `key` label looks like `host:api.openai.com`, which makes per-provider dashboards a one-line PromQL query (`sum by (key) (rate(ormuz_requests_total[1m]))` filtered to `key=~"host:.*"`). Under `auth`, `key` contains the raw `Authorization` header value — be careful where you ship those metrics.
+Under `ORMUZ_BUCKET_KEY=host`, the `key` label looks like `host:api.openai.com`, which makes per-provider dashboards a one-line PromQL query (`sum by (key) (rate(ormuz_requests_total[1m]))` filtered to `key=~"host:.*"`). Under `auth`, `key` is `auth:<8-char SHA-256 prefix>` — the raw `Authorization` header never reaches metrics labels, logs, or hook payloads, so the output is safe to ship to shared dashboards.
 
 Suggested alerts:
 
