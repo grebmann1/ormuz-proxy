@@ -167,7 +167,10 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     const startedAt = Date.now();
     const requestId = String(request.id);
     const rawBody = (request.body as Buffer | undefined) ?? Buffer.alloc(0);
-    const bodyForKey = parseBodyForBucket(rawBody, request.headers["content-type"]);
+    const bodyForKey =
+      config.bucketKeyMode === "model"
+        ? parseBodyForBucket(rawBody, request.headers["content-type"])
+        : undefined;
     const [splitPath, queryString = ""] = request.url.split("?");
     const originalPath = splitPath ?? "/";
     const configuredRoute = resolveConfiguredRoute(originalPath, request.headers, config.routingRules);
