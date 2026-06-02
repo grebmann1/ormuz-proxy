@@ -186,6 +186,14 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
       originalPath: request.url,
       bucketKey
     });
+    const baseHookPayload = {
+      requestId,
+      method: request.method,
+      originalPath: request.url,
+      bucketKey,
+      provider: resolvedRoute?.provider,
+      routeStrategy: resolvedRoute?.routeStrategy
+    };
 
     const providerOrRouteConfigured =
       Object.keys(config.providerTargets).length > 0 ||
@@ -211,36 +219,15 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
 
     if (resolvedRoute) {
       hookRegistry.emitProviderResolved({
-        requestId,
-        method: request.method,
-        originalPath: request.url,
-        bucketKey,
-        provider: resolvedRoute.provider,
+        ...baseHookPayload,
         upstreamBaseUrl: resolvedRoute.upstreamBaseUrl,
-        upstreamPath: resolvedRoute.rewrittenPath,
-        routeStrategy: resolvedRoute.routeStrategy
+        upstreamPath: resolvedRoute.rewrittenPath
       });
     }
 
     const submitHooks: SubmitHooks = {
-      onQueued: (depth) =>
-        hookRegistry.emitQueued({
-          requestId,
-          method: request.method,
-          originalPath: request.url,
-          bucketKey,
-          provider: resolvedRoute?.provider,
-          queueDepth: depth
-        }),
-      onUpstream429: (retryAfterMs) =>
-        hookRegistry.emitUpstream429({
-          requestId,
-          method: request.method,
-          originalPath: request.url,
-          bucketKey,
-          provider: resolvedRoute?.provider,
-          retryAfterMs
-        })
+      onQueued: (depth) => hookRegistry.emitQueued({ ...baseHookPayload, queueDepth: depth }),
+      onUpstream429: (retryAfterMs) => hookRegistry.emitUpstream429({ ...baseHookPayload, retryAfterMs })
     };
 
     try {
@@ -258,37 +245,19 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
             attempt,
             onForwardStart: () =>
               hookRegistry.emitForwardStart({
-                requestId,
-                method: request.method,
-                originalPath: request.url,
-                bucketKey,
-                provider: resolvedRoute?.provider,
-                routeStrategy: resolvedRoute?.routeStrategy,
+                ...baseHookPayload,
                 upstreamBaseUrl,
                 upstreamPath: pathOnly
               }),
             onUpstreamStatus: (code) => metrics.recordUpstreamStatus(code),
             onForwardResult: (statusCode) =>
-              hookRegistry.emitForwardResult({
-                requestId,
-                method: request.method,
-                originalPath: request.url,
-                bucketKey,
-                provider: resolvedRoute?.provider,
-                routeStrategy: resolvedRoute?.routeStrategy,
-                statusCode
-              }),
+              hookRegistry.emitForwardResult({ ...baseHookPayload, statusCode }),
             onForwarded: () => metrics.recordForwarded()
           }),
         submitHooks
       );
       hookRegistry.emitRequestCompleted({
-        requestId,
-        method: request.method,
-        originalPath: request.url,
-        bucketKey,
-        provider: resolvedRoute?.provider,
-        routeStrategy: resolvedRoute?.routeStrategy,
+        ...baseHookPayload,
         durationMs: Date.now() - startedAt,
         statusCode: reply.statusCode
       });
@@ -304,12 +273,7 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
 
       request.log.error({ err: error }, "proxy request failed");
       hookRegistry.emitRequestCompleted({
-        requestId,
-        method: request.method,
-        originalPath: request.url,
-        bucketKey,
-        provider: resolvedRoute?.provider,
-        routeStrategy: resolvedRoute?.routeStrategy,
+        ...baseHookPayload,
         durationMs: Date.now() - startedAt,
         statusCode: 500,
         error
