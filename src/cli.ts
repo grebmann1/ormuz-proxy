@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
 import { stdin, stderr, stdout, loadEnvFile } from "node:process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { ZodError } from "zod";
 
 import { DEFAULT_PROVIDER_TARGETS_FILE, loadConfig } from "./config.js";
 import { createLiveMonitorHooks } from "./liveMonitor.js";
 import { collectAllowedHosts, startServer, summarizeConfig } from "./server.js";
+import { readPackageVersion } from "./version.js";
 
 type CliArgs = {
   port?: string;
@@ -168,16 +170,6 @@ function loadDotEnvIfPresent(): void {
   }
 }
 
-function readPackageVersion(): string {
-  try {
-    const pkgPath = resolve(new URL("../package.json", import.meta.url).pathname);
-    const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version?: string };
-    return pkg.version ?? "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
-}
-
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const parsed1 = parseArgs(argv);
   if (parsed1 === "help") {
@@ -279,6 +271,18 @@ function printConfigError(error: unknown): void {
   stderr.write(`Ormuz config error: ${(error as Error).message ?? String(error)}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isMainModule(): boolean {
+  if (!process.argv[1]) {
+    return false;
+  }
+  try {
+    const moduleFile = fileURLToPath(import.meta.url);
+    return realpathSync(moduleFile) === realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
   void runCli();
 }
