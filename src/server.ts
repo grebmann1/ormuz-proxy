@@ -377,12 +377,24 @@ export async function startServer(config = loadConfig(), hooks: OrmuzHooks = {})
     );
   }
 
-  const shutdown = async () => {
-    await app.close();
-    process.exit(0);
+  let shuttingDown = false;
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) {
+      app.log.warn(`${signal} received again — forcing exit.`);
+      process.exit(1);
+    }
+    shuttingDown = true;
+    app.log.info(`${signal} received — draining; press again to force exit.`);
+    try {
+      await app.close();
+      process.exit(0);
+    } catch (error) {
+      app.log.error({ err: error }, "error during graceful shutdown");
+      process.exit(1);
+    }
   };
-  process.once("SIGTERM", shutdown);
-  process.once("SIGINT", shutdown);
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 
   return app;
 }
