@@ -8,6 +8,7 @@ export type ProviderResolution = {
 };
 
 const normalizedTargetCache = new WeakMap<Record<string, string>, Map<string, string>>();
+const sortedPathPrefixCache = new WeakMap<Record<string, string>, [string, string][]>();
 
 function normalizeTargetMap(targets: Record<string, string>): Map<string, string> {
   const cached = normalizedTargetCache.get(targets);
@@ -20,6 +21,16 @@ function normalizeTargetMap(targets: Record<string, string>): Map<string, string
   }
   normalizedTargetCache.set(targets, map);
   return map;
+}
+
+function sortedPathPrefixes(rules: Record<string, string>): [string, string][] {
+  const cached = sortedPathPrefixCache.get(rules);
+  if (cached) {
+    return cached;
+  }
+  const sorted = Object.entries(rules).sort((a, b) => b[0].length - a[0].length);
+  sortedPathPrefixCache.set(rules, sorted);
+  return sorted;
 }
 
 export function resolveProviderRoute(path: string, providerTargets: Record<string, string>): ProviderResolution | undefined {
@@ -84,9 +95,7 @@ export function resolveByHeader(
 
 export function resolveByPathPrefix(path: string, rules: Record<string, string>): ProviderResolution | undefined {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const matched = Object.entries(rules)
-    .filter(([prefix]) => normalizedPath.startsWith(prefix))
-    .sort((a, b) => b[0].length - a[0].length)[0];
+  const matched = sortedPathPrefixes(rules).find(([prefix]) => normalizedPath.startsWith(prefix));
 
   if (!matched) {
     return undefined;
