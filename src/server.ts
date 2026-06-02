@@ -163,6 +163,14 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
     return metrics.snapshot();
   });
 
+  const providerOrRouteConfigured =
+    Object.keys(config.providerTargets).length > 0 ||
+    Object.keys(config.routingRules.pathPrefixes).length > 0 ||
+    config.routingRules.headers.length > 0;
+  const supportedProviders = Object.keys(config.providerTargets).sort();
+  const supportedPathPrefixes = Object.keys(config.routingRules.pathPrefixes).sort();
+  const supportedHeaderRules = config.routingRules.headers.map((rule) => `${rule.header}=${rule.value}`);
+
   app.all("/v1/*", async (request, reply) => {
     const startedAt = Date.now();
     const requestId = String(request.id);
@@ -195,18 +203,13 @@ export function buildApp(config: AppConfig, hooks: OrmuzHooks = {}): FastifyInst
       routeStrategy: resolvedRoute?.routeStrategy
     };
 
-    const providerOrRouteConfigured =
-      Object.keys(config.providerTargets).length > 0 ||
-      Object.keys(config.routingRules.pathPrefixes).length > 0 ||
-      config.routingRules.headers.length > 0;
-
     if (!resolvedRoute && providerOrRouteConfigured) {
       return reply.code(400).send({
         error: "unmatched_route",
         message: "Unable to resolve route from headers/path.",
-        supportedProviders: Object.keys(config.providerTargets).sort(),
-        supportedPathPrefixes: Object.keys(config.routingRules.pathPrefixes).sort(),
-        supportedHeaderRules: config.routingRules.headers.map((rule) => `${rule.header}=${rule.value}`)
+        supportedProviders,
+        supportedPathPrefixes,
+        supportedHeaderRules
       });
     }
 
